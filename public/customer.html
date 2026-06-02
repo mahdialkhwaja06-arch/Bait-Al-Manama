@@ -366,7 +366,8 @@ function renderMenuList(container,sec){
             '</div>'
         )+
       '</div>'+
-    '</div>';
+    '</div>'+
+    (isFlavorItem(name)?'<button id="'+flavorPickId+'" onclick="openFlavorPick(\''+escapedName+'\','+price+')" style="display:none;width:calc(100% - 32px);margin:2px 16px 8px;padding:10px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">\uD83C\uDF7E Pick Flavor</button>':'');
   }).join('');
 }
 
@@ -451,6 +452,7 @@ function getQtyId(n){return 'qty_'+n.replace(/[^a-zA-Z0-9]/g,'_');}
 var FLAVOR_ITEMS_LIST = ['Kinza', 'Iced Kinza'];
 var KINZA_FLAVORS = ['Cola','Pomegranate','Orange','Diet Cola','Diet Lemon','Lemon','Citrus','Diet Citrus','Blueberries'];
 var flavorModalPending = null;
+var pendingFlavorQty = {};
 function isFlavorItem(n){ return FLAVOR_ITEMS_LIST.indexOf(n)!==-1; }
 function getFlavorBaseQty(base){
   return KINZA_FLAVORS.reduce(function(s,f){ var k=base+' ('+f+')'; return s+((orders[k]&&orders[k].qty)||0); },0);
@@ -458,11 +460,11 @@ function getFlavorBaseQty(base){
 function pickFlavor(flavor){
   if(!flavorModalPending) return;
   var key=flavorModalPending.name+' ('+flavor+')';
+  var qty=flavorModalPending.qty||1;
   if(!orders[key]) orders[key]={qty:0,price:flavorModalPending.price};
-  orders[key].qty++;
-  var el=document.getElementById(getQtyId(flavorModalPending.name));
-  if(el) el.innerText=getFlavorBaseQty(flavorModalPending.name);
-  updateTotal();
+  orders[key].qty+=qty;
+  pendingFlavorQty[flavorModalPending.name]=0;
+  updateCustFlavorDisplay(flavorModalPending.name);
   document.getElementById('flavorModal').style.display='none';
   flavorModalPending=null;
 }
@@ -470,8 +472,9 @@ function renderFlavorModal(){
   var base=flavorModalPending?flavorModalPending.name:'';
   var box=document.getElementById('flavorModalBox');
   if(!box) return;
+  var qty=flavorModalPending?flavorModalPending.qty||1:1;
   box.innerHTML='<h2 style="font-size:19px;font-weight:800;margin-bottom:6px;color:#1c120b;">'+base+'</h2>'+
-    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Pick a flavor</p>'+
+    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Pick flavor for <strong>'+qty+'</strong> can'+(qty>1?'s':'')+'</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+
     KINZA_FLAVORS.map(function(f){
       return '<button onclick="pickFlavor(\''+f+'\')" style="padding:12px 8px;border:none;border-radius:14px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">'+f+'</button>';

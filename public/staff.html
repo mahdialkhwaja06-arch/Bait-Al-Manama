@@ -583,7 +583,8 @@ var pendingSecMedia = null;
 /* ── Kinza Flavor System ── */
 var FLAVOR_ITEMS_LIST = ['Kinza', 'Iced Kinza'];
 var KINZA_FLAVORS = ['Cola','Pomegranate','Orange','Diet Cola','Diet Lemon','Lemon','Citrus','Diet Citrus','Blueberries'];
-var flavorModalPending = null; /* {name, price, change} */
+var flavorModalPending = null;
+var pendingFlavorQty = {}; /* {itemName: count} */
 /* ───── Employee helpers ───── */
 /* ───── Employee helpers (server-synced) ───── */
 var _empCache = null;
@@ -1051,7 +1052,8 @@ function renderMenuList(sec){
     var name=item[0]; var price=item[1];
     var disabled=!!disabledItems[name];
     var safeId='qty_'+name.replace(/[^a-zA-Z0-9]/g,'_');
-    var qty=isFlavorItem(name)?getFlavorBaseQty(name):((localOrders[name]&&localOrders[name].qty)||0);
+    var qty=isFlavorItem(name)?getFlavorTotalQty(name):((localOrders[name]&&localOrders[name].qty)||0);
+    var flavorPickId='flavorpick_'+name.replace(/[^a-zA-Z0-9]/g,'_');
     var imgSrc=images[name]||'';
     var isVid=!!isVideoItems[name];
     var thumbHtml=isVid
@@ -1071,7 +1073,12 @@ function renderMenuList(sec){
             '</div>'
         )+
       '</div>'+
-    '</div>';
+    '</div>'+
+    (isFlavorItem(name)?
+      '<button id="'+flavorPickId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')" '+
+      'style="display:none;width:calc(100% - 32px);margin:4px 16px 8px;padding:10px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;font-family:\'Cairo\',sans-serif;">'+
+      '\uD83C\uDF7E Pick Flavor</button>'
+    :'');
   }).join('');
 }
 
@@ -1699,9 +1706,11 @@ function changeQty(name,change,price){
 function pickFlavor(flavor){
   if(!flavorModalPending) return;
   var key=flavorModalPending.name+' ('+flavor+')';
+  var qty=flavorModalPending.qty||1;
   if(!localOrders[key]){localOrders[key]={qty:0,price:flavorModalPending.price};}
-  localOrders[key].qty++;
-  updateFlavorQtyDisplay(flavorModalPending.name);
+  localOrders[key].qty+=qty;
+  pendingFlavorQty[flavorModalPending.name]=0;
+  updateFlavorQtyDisplay(flavorModalPending.name,flavorModalPending.price);
   document.getElementById('flavorModal').style.display='none';
   flavorModalPending=null;
 }
@@ -1762,6 +1771,7 @@ function sendOrder(){
 }
 function resetOrder(){
   for(var item in localOrders){localOrders[item].qty=0;}
+  pendingFlavorQty={};
   document.querySelectorAll('.qty').forEach(function(el){el.innerText='0';});
   if(!currentEmployee) document.getElementById('employeeName').value='';
   document.getElementById('tableNumber').value='';
