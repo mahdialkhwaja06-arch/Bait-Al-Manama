@@ -367,7 +367,9 @@ function renderMenuList(container,sec){
         )+
       '</div>'+
     '</div>'+
-    (isFlavorItem(name)?'<button id="'+flavorPickId+'" onclick="openFlavorPick(\''+escapedName+'\','+price+')" style="display:none;width:calc(100% - 32px);margin:2px 16px 8px;padding:10px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">\uD83C\uDF7E Pick Flavor</button>':'');
+    (isFlavorItem(name)?'<div id="flavorpick_'+escapedName.replace(/[^a-zA-Z0-9]/g,'_')+'" style="display:none;padding:2px 16px 8px;">'+
+    '<button onclick="openFlavorPick(\''+escapedName+'\',' +price+')" style="width:100%;padding:11px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">Pick Flavor</button></div>'
+    :'');
   }).join('');
 }
 
@@ -457,6 +459,18 @@ function isFlavorItem(n){ return FLAVOR_ITEMS_LIST.indexOf(n)!==-1; }
 function getFlavorBaseQty(base){
   return KINZA_FLAVORS.reduce(function(s,f){ var k=base+' ('+f+')'; return s+((orders[k]&&orders[k].qty)||0); },0);
 }
+function getFlavorTotalQty(base){ return getFlavorBaseQty(base)+(pendingFlavorQty[base]||0); }
+function updatePickBtn(name){
+  var btn=document.getElementById('flavorpick_'+name.replace(/[^a-zA-Z0-9]/g,'_'));
+  var pending=pendingFlavorQty[name]||0;
+  if(btn){ btn.style.display=pending>0?'block':'none'; if(pending>0) btn.innerText='🍾 Pick Flavor for '+pending+' can'+(pending>1?'s':''); }
+}
+function openFlavorPick(name,price){
+  var pending=pendingFlavorQty[name]||0; if(pending<=0) return;
+  flavorModalPending={name:name,price:price,qty:pending};
+  renderFlavorModal();
+  document.getElementById('flavorModal').style.display='flex';
+}
 function pickFlavor(flavor){
   if(!flavorModalPending) return;
   var key=flavorModalPending.name+' ('+flavor+')';
@@ -464,7 +478,10 @@ function pickFlavor(flavor){
   if(!orders[key]) orders[key]={qty:0,price:flavorModalPending.price};
   orders[key].qty+=qty;
   pendingFlavorQty[flavorModalPending.name]=0;
-  updateCustFlavorDisplay(flavorModalPending.name);
+  var el=document.getElementById(getQtyId(flavorModalPending.name));
+  if(el) el.innerText=getFlavorTotalQty(flavorModalPending.name);
+  updatePickBtn(flavorModalPending.name);
+  updateTotal();
   document.getElementById('flavorModal').style.display='none';
   flavorModalPending=null;
 }
@@ -472,9 +489,8 @@ function renderFlavorModal(){
   var base=flavorModalPending?flavorModalPending.name:'';
   var box=document.getElementById('flavorModalBox');
   if(!box) return;
-  var qty=flavorModalPending?flavorModalPending.qty||1:1;
   box.innerHTML='<h2 style="font-size:19px;font-weight:800;margin-bottom:6px;color:#1c120b;">'+base+'</h2>'+
-    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Pick flavor for <strong>'+qty+'</strong> can'+(qty>1?'s':'')+'</p>'+
+    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Pick a flavor</p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+
     KINZA_FLAVORS.map(function(f){
       return '<button onclick="pickFlavor(\''+f+'\')" style="padding:12px 8px;border:none;border-radius:14px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">'+f+'</button>';
@@ -498,7 +514,10 @@ function changeQty(name,change,price){
         }
       }
     }
-    updateCustFlavorDisplay(name); return;
+    var dispEl=document.getElementById(getQtyId(name));
+    if(dispEl) dispEl.innerText=getFlavorTotalQty(name);
+    updatePickBtn(name);
+    updateTotal(); return;
   }
   if(!orders[name]){orders[name]={qty:0,price:price};}
   orders[name].qty+=change;

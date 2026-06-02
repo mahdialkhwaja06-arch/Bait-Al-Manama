@@ -584,7 +584,7 @@ var pendingSecMedia = null;
 var FLAVOR_ITEMS_LIST = ['Kinza', 'Iced Kinza'];
 var KINZA_FLAVORS = ['Cola','Pomegranate','Orange','Diet Cola','Diet Lemon','Lemon','Citrus','Diet Citrus','Blueberries'];
 var flavorModalPending = null;
-var pendingFlavorQty = {}; /* {itemName: count} */
+var pendingFlavorQty = {}; /* {name, price, change} */
 /* ───── Employee helpers ───── */
 /* ───── Employee helpers (server-synced) ───── */
 var _empCache = null;
@@ -1052,8 +1052,8 @@ function renderMenuList(sec){
     var name=item[0]; var price=item[1];
     var disabled=!!disabledItems[name];
     var safeId='qty_'+name.replace(/[^a-zA-Z0-9]/g,'_');
-    var qty=isFlavorItem(name)?getFlavorTotalQty(name):((localOrders[name]&&localOrders[name].qty)||0);
     var flavorPickId='flavorpick_'+name.replace(/[^a-zA-Z0-9]/g,'_');
+    var qty=isFlavorItem(name)?getFlavorTotalQty(name):((localOrders[name]&&localOrders[name].qty)||0);
     var imgSrc=images[name]||'';
     var isVid=!!isVideoItems[name];
     var thumbHtml=isVid
@@ -1074,10 +1074,8 @@ function renderMenuList(sec){
         )+
       '</div>'+
     '</div>'+
-    (isFlavorItem(name)?
-      '<button id="'+flavorPickId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')" '+
-      'style="display:none;width:calc(100% - 32px);margin:4px 16px 8px;padding:10px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;font-family:\'Cairo\',sans-serif;">'+
-      '\uD83C\uDF7E Pick Flavor</button>'
+    (isFlavorItem(name)?'<div id="'+flavorPickId+'" style="display:none;padding:2px 16px 8px;">'+
+    '<button onclick="openFlavorPick(\''+esc(name)+'\',' +price+')" style="width:100%;padding:11px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">Pick Flavor</button></div>'
     :'');
   }).join('');
 }
@@ -1668,9 +1666,25 @@ function getFlavorBaseQty(baseName){
     return s+((localOrders[k]&&localOrders[k].qty)||0);
   },0);
 }
+function getFlavorTotalQty(baseName){
+  return getFlavorBaseQty(baseName)+(pendingFlavorQty[baseName]||0);
+}
+function openFlavorPick(name,price){
+  var pending=pendingFlavorQty[name]||0;
+  if(pending<=0) return;
+  flavorModalPending={name:name,price:price,qty:pending};
+  renderFlavorModal();
+  document.getElementById('flavorModal').style.display='flex';
+}
 function updateFlavorQtyDisplay(baseName){
   var el=document.getElementById(getQtyId(baseName));
-  if(el) el.innerText=getFlavorBaseQty(baseName);
+  if(el) el.innerText=getFlavorTotalQty(baseName);
+  var btn=document.getElementById('flavorpick_'+baseName.replace(/[^a-zA-Z0-9]/g,'_'));
+  var pending=pendingFlavorQty[baseName]||0;
+  if(btn){
+    btn.style.display=pending>0?'block':'none';
+    if(pending>0) btn.innerText='🍾 Pick Flavor for '+pending+' can'+(pending>1?'s':'');
+  }
   updateTotal();
 }
 function changeQty(name,change,price){
@@ -1710,7 +1724,7 @@ function pickFlavor(flavor){
   if(!localOrders[key]){localOrders[key]={qty:0,price:flavorModalPending.price};}
   localOrders[key].qty+=qty;
   pendingFlavorQty[flavorModalPending.name]=0;
-  updateFlavorQtyDisplay(flavorModalPending.name,flavorModalPending.price);
+  updateFlavorQtyDisplay(flavorModalPending.name);
   document.getElementById('flavorModal').style.display='none';
   flavorModalPending=null;
 }
