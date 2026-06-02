@@ -502,6 +502,9 @@ function changeQty(name,change,price){
     orders[name].qty+=change;
     if(orders[name].qty<0) orders[name].qty=0;
     if(orders[name].qty===0) delete orders[name];
+    var dispEl=document.getElementById(getQtyId(name));
+    var newQty=(orders[name]?orders[name].qty:0)+getFlavorBaseQty(name);
+    if(dispEl) dispEl.innerText=newQty;
     var fpBtn=document.getElementById('fpbtn_'+getQtyId(name));
     if(fpBtn) fpBtn.style.display=(orders[name]&&orders[name].qty>0)?'inline-block':'none';
     updateTotal();

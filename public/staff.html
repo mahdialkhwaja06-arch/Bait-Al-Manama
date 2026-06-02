@@ -1675,6 +1675,9 @@ function changeQty(name,change,price){
     localOrders[name].qty+=change;
     if(localOrders[name].qty<0) localOrders[name].qty=0;
     if(localOrders[name].qty===0) delete localOrders[name];
+    var dispEl=document.getElementById(getQtyId(name));
+    var newQty=(localOrders[name]?localOrders[name].qty:0)+getFlavorBaseQty(name);
+    if(dispEl) dispEl.innerText=newQty;
     var fpBtn=document.getElementById('fpbtn_'+getQtyId(name));
     if(fpBtn) fpBtn.style.display=(localOrders[name]&&localOrders[name].qty>0)?'inline-block':'none';
     updateTotal();
