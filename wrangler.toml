@@ -1,9 +1,11 @@
 name = "bait-almanama"
-pages_build_output_dir = "public"
+main = "worker.js"
 compatibility_date = "2024-09-23"
 
-# After creating a KV namespace in the dashboard,
-# paste its ID below and in the Pages project settings.
+[assets]
+directory = "public"
+binding = "ASSETS"
+
 [[kv_namespaces]]
 binding = "KV"
-id = "PASTE_YOUR_KV_ID_HERE"
+id = "7f280256b922409d917877b2bdbde7d9"
