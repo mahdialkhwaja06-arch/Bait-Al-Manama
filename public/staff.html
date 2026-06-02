@@ -583,8 +583,7 @@ var pendingSecMedia = null;
 /* ── Kinza Flavor System ── */
 var FLAVOR_ITEMS_LIST = ['Kinza', 'Iced Kinza'];
 var KINZA_FLAVORS = ['Cola','Pomegranate','Orange','Diet Cola','Diet Lemon','Lemon','Citrus','Diet Citrus','Blueberries'];
-var flavorModalPending = null;
-var pendingFlavorQty = {}; /* {name, price, change} */
+var flavorModalPending = null; /* {name, price, change} */
 /* ───── Employee helpers ───── */
 /* ───── Employee helpers (server-synced) ───── */
 var _empCache = null;
@@ -1052,7 +1051,6 @@ function renderMenuList(sec){
     var name=item[0]; var price=item[1];
     var disabled=!!disabledItems[name];
     var safeId='qty_'+name.replace(/[^a-zA-Z0-9]/g,'_');
-    var flavorPickId='flavorpick_'+name.replace(/[^a-zA-Z0-9]/g,'_');
     var qty=isFlavorItem(name)?getFlavorTotalQty(name):((localOrders[name]&&localOrders[name].qty)||0);
     var imgSrc=images[name]||'';
     var isVid=!!isVideoItems[name];
@@ -1070,13 +1068,14 @@ function renderMenuList(sec){
               '<button onclick="changeQty(\''+esc(name)+'\',-1,'+price+')">&#8722;</button>'+
               '<div class="qty" id="'+safeId+'">'+qty+'</div>'+
               '<button onclick="changeQty(\''+esc(name)+'\',1,'+price+')">&#43;</button>'+
+              (isFlavorItem(name)?
+                '<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')" '+
+                'style="display:none;margin-left:6px;padding:6px 10px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:12px;font-weight:700;cursor:pointer;">\uD83C\uDF7E</button>'
+              :'')+
             '</div>'
         )+
       '</div>'+
-    '</div>'+
-    (isFlavorItem(name)?'<div id="'+flavorPickId+'" style="display:none;padding:2px 16px 8px;">'+
-    '<button onclick="openFlavorPick(\''+esc(name)+'\',' +price+')" style="width:100%;padding:11px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">Pick Flavor</button></div>'
-    :'');
+    '</div>';
   }).join('');
 }
 
@@ -1667,47 +1666,50 @@ function getFlavorBaseQty(baseName){
   },0);
 }
 function getFlavorTotalQty(baseName){
-  return getFlavorBaseQty(baseName)+(pendingFlavorQty[baseName]||0);
-}
-function openFlavorPick(name,price){
-  var pending=pendingFlavorQty[name]||0;
-  if(pending<=0) return;
-  flavorModalPending={name:name,price:price,qty:pending};
-  renderFlavorModal();
-  document.getElementById('flavorModal').style.display='flex';
+  return (localOrders[baseName]?localOrders[baseName].qty:0)+getFlavorBaseQty(baseName);
 }
 function updateFlavorQtyDisplay(baseName){
   var el=document.getElementById(getQtyId(baseName));
   if(el) el.innerText=getFlavorTotalQty(baseName);
-  var btn=document.getElementById('flavorpick_'+baseName.replace(/[^a-zA-Z0-9]/g,'_'));
-  var pending=pendingFlavorQty[baseName]||0;
-  if(btn){
-    btn.style.display=pending>0?'block':'none';
-    if(pending>0) btn.innerText='🍾 Pick Flavor for '+pending+' can'+(pending>1?'s':'');
-  }
+  /* show/hide the flavor button */
+  var safeId='fpbtn_'+baseName.replace(/[^a-zA-Z0-9]/g,'_');
+  var btn=document.getElementById(safeId);
+  var unflavored=(localOrders[baseName]?localOrders[baseName].qty:0);
+  if(btn) btn.style.display=unflavored>0?'inline-flex':'none';
   updateTotal();
+}
+function openFlavorPick(name,price){
+  var qty=localOrders[name]?localOrders[name].qty:0;
+  if(qty<=0) return;
+  flavorModalPending={name:name,price:price,qty:qty};
+  renderFlavorModal();
+  document.getElementById('flavorModal').style.display='flex';
+}
+function pickFlavor(flavor){
+  if(!flavorModalPending) return;
+  var base=flavorModalPending.name;
+  var qty=flavorModalPending.qty||1;
+  var price=flavorModalPending.price;
+  /* remove unflavored */
+  delete localOrders[base];
+  /* add flavored */
+  var key=base+' ('+flavor+')';
+  if(!localOrders[key]) localOrders[key]={qty:0,price:price};
+  localOrders[key].qty+=qty;
+  updateFlavorQtyDisplay(base);
+  document.getElementById('flavorModal').style.display='none';
+  flavorModalPending=null;
 }
 function changeQty(name,change,price){
   if(disabledItems[name]) return;
   if(isFlavorItem(name)){
-    if(!pendingFlavorQty[name]) pendingFlavorQty[name]=0;
-    if(change>0){
-      pendingFlavorQty[name]++;
-    } else {
-      if(pendingFlavorQty[name]>0){
-        pendingFlavorQty[name]--;
-      } else {
-        for(var fi=0;fi<KINZA_FLAVORS.length;fi++){
-          var fk=name+' ('+KINZA_FLAVORS[fi]+')';
-          if(localOrders[fk]&&localOrders[fk].qty>0){
-            localOrders[fk].qty--;
-            if(localOrders[fk].qty<=0) delete localOrders[fk];
-            break;
-          }
-        }
-      }
-    }
+    /* act like a normal item so checkout always shows */
+    if(!localOrders[name]) localOrders[name]={qty:0,price:price};
+    localOrders[name].qty+=change;
+    if(localOrders[name].qty<0) localOrders[name].qty=0;
+    if(localOrders[name].qty===0) delete localOrders[name];
     updateFlavorQtyDisplay(name);
+    updateTotal();
     return;
   }
   if(!localOrders[name]){localOrders[name]={qty:0,price:price};}
@@ -1717,24 +1719,14 @@ function changeQty(name,change,price){
   if(el) el.innerText=localOrders[name].qty;
   updateTotal();
 }
-function pickFlavor(flavor){
-  if(!flavorModalPending) return;
-  var key=flavorModalPending.name+' ('+flavor+')';
-  var qty=flavorModalPending.qty||1;
-  if(!localOrders[key]){localOrders[key]={qty:0,price:flavorModalPending.price};}
-  localOrders[key].qty+=qty;
-  pendingFlavorQty[flavorModalPending.name]=0;
-  updateFlavorQtyDisplay(flavorModalPending.name);
-  document.getElementById('flavorModal').style.display='none';
-  flavorModalPending=null;
-}
+
 function renderFlavorModal(){
   var base=flavorModalPending?flavorModalPending.name:'';
   var box=document.getElementById('flavorModalBox');
   if(!box) return;
   box.innerHTML=
     '<h2 style="font-size:19px;font-weight:800;margin-bottom:6px;">'+base+' — Pick Flavor</h2>'+
-    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Select a flavor for this drink</p>'+
+    '<p style="font-size:13px;color:#8a6a3a;margin-bottom:16px;">Pick flavor for <strong>'+(flavorModalPending?flavorModalPending.qty||1:1)+'</strong> can'+((flavorModalPending&&(flavorModalPending.qty||1)>1)?'s':'')+' </p>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">'+
     KINZA_FLAVORS.map(function(f){
       return '<button onclick="pickFlavor(\''+f+'\')" style="padding:12px 8px;border:none;border-radius:14px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;font-family:\'Cairo\',sans-serif;">'+f+'</button>';
@@ -1785,7 +1777,6 @@ function sendOrder(){
 }
 function resetOrder(){
   for(var item in localOrders){localOrders[item].qty=0;}
-  pendingFlavorQty={};
   document.querySelectorAll('.qty').forEach(function(el){el.innerText='0';});
   if(!currentEmployee) document.getElementById('employeeName').value='';
   document.getElementById('tableNumber').value='';
