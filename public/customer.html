@@ -485,24 +485,20 @@ function renderFlavorModal(){
 function changeQty(name,change,price){
   if(disabledItems[name]) return;
   if(isFlavorItem(name)){
+    if(!pendingFlavorQty[name]) pendingFlavorQty[name]=0;
     if(change>0){
-      flavorModalPending={name:name,price:price};
-      renderFlavorModal();
-      document.getElementById('flavorModal').style.display='flex';
-      return;
+      pendingFlavorQty[name]++;
     } else {
-      for(var fi=0;fi<KINZA_FLAVORS.length;fi++){
-        var fk=name+' ('+KINZA_FLAVORS[fi]+')';
-        if(orders[fk]&&orders[fk].qty>0){
-          orders[fk].qty--;
-          if(orders[fk].qty<=0) delete orders[fk];
-          var el2=document.getElementById(getQtyId(name));
-          if(el2) el2.innerText=getFlavorBaseQty(name);
-          updateTotal(); return;
+      if(pendingFlavorQty[name]>0){
+        pendingFlavorQty[name]--;
+      } else {
+        for(var fi=0;fi<KINZA_FLAVORS.length;fi++){
+          var fk=name+' ('+KINZA_FLAVORS[fi]+')';
+          if(orders[fk]&&orders[fk].qty>0){ orders[fk].qty--; if(orders[fk].qty<=0) delete orders[fk]; break; }
         }
       }
-      return;
     }
+    updateCustFlavorDisplay(name); return;
   }
   if(!orders[name]){orders[name]={qty:0,price:price};}
   orders[name].qty+=change;
