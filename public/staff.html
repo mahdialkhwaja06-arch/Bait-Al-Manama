@@ -1065,11 +1065,11 @@ function renderMenuList(sec){
         (disabled
           ? '<span class="out-of-stock-label">Out of Stock</span>'
           : '<div class="menu-list-item-controls">'+
+              (isFlavorItem(name)?'<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')"'
+              +' style="display:none;margin-right:6px;padding:5px 10px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:12px;font-weight:700;cursor:pointer;">Pick Flavor</button>':'')+
               '<button onclick="changeQty(\''+esc(name)+'\',-1,'+price+')">&#8722;</button>'+
               '<div class="qty" id="'+safeId+'">'+qty+'</div>'+
               '<button onclick="changeQty(\''+esc(name)+'\',1,'+price+')">&#43;</button>'+
-              (isFlavorItem(name)?'<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')"'
-              +' style="display:none;margin-left:4px;padding:5px 9px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:13px;font-weight:700;cursor:pointer;">\uD83C\uDF7E</button>':'')+
             '</div>'
         )+
       '</div>'+
@@ -1671,10 +1671,25 @@ function updateFlavorQtyDisplay(baseName){
 function changeQty(name,change,price){
   if(disabledItems[name]) return;
   if(isFlavorItem(name)){
-    if(!localOrders[name]) localOrders[name]={qty:0,price:price};
-    localOrders[name].qty+=change;
-    if(localOrders[name].qty<0) localOrders[name].qty=0;
-    if(localOrders[name].qty===0) delete localOrders[name];
+    if(change>0){
+      if(!localOrders[name]) localOrders[name]={qty:0,price:price};
+      localOrders[name].qty++;
+    } else {
+      /* remove unflavored first, then flavored variants */
+      if(localOrders[name]&&localOrders[name].qty>0){
+        localOrders[name].qty--;
+        if(localOrders[name].qty===0) delete localOrders[name];
+      } else {
+        for(var fi=0;fi<KINZA_FLAVORS.length;fi++){
+          var fk=name+' ('+KINZA_FLAVORS[fi]+')';
+          if(localOrders[fk]&&localOrders[fk].qty>0){
+            localOrders[fk].qty--;
+            if(localOrders[fk].qty<=0) delete localOrders[fk];
+            break;
+          }
+        }
+      }
+    }
     var dispEl=document.getElementById(getQtyId(name));
     var newQty=(localOrders[name]?localOrders[name].qty:0)+getFlavorBaseQty(name);
     if(dispEl) dispEl.innerText=newQty;
@@ -1736,16 +1751,34 @@ function updateTotal(){
   var btn=document.getElementById('checkoutBtn');
   if(total>0){btn.classList.add('active');}else{btn.classList.remove('active');closeCheckout();}
 }
-function openCheckout(){
-  var html='';
+function renderCheckoutItems(){
+  var html=''; var total=0;
   for(var item in localOrders){
     if(localOrders[item].qty>0){
-      html+='<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e8dcc8;color:#1c120b;">'+
-        '<span>'+item+' x'+localOrders[item].qty+'</span>'+
-        '<span style="font-weight:700;">'+(localOrders[item].qty*localOrders[item].price).toFixed(3)+' BD</span></div>';
+      var itotal=localOrders[item].qty*localOrders[item].price; total+=itotal;
+      var safeItem=item.replace(/'/g,"\\'");
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #e8dcc8;color:#1c120b;">'+
+        '<span style="flex:1;font-size:14px;">'+item+'</span>'+
+        '<button onclick="checkoutChange(\''+safeItem+'\',- 1)" style="width:26px;height:26px;border:none;border-radius:7px;background:#e8dcc8;cursor:pointer;font-size:15px;font-weight:700;">&#8722;</button>'+
+        '<span style="min-width:22px;text-align:center;font-weight:700;">'+localOrders[item].qty+'</span>'+
+        '<button onclick="checkoutChange(\''+safeItem+'\',1)" style="width:26px;height:26px;border:none;border-radius:7px;background:#e8dcc8;cursor:pointer;font-size:15px;font-weight:700;">&#43;</button>'+
+        '<span style="font-weight:700;min-width:60px;text-align:right;">'+itotal.toFixed(3)+' BD</span>'+
+      '</div>';
     }
   }
-  document.getElementById('orderItemsList').innerHTML=html;
+  document.getElementById('orderItemsList').innerHTML=html||'<p style="text-align:center;color:#8a6a3a;padding:10px;">No items</p>';
+  var span=document.getElementById('total');
+  if(span) span.innerText=total.toFixed(3);
+}
+function checkoutChange(item,change){
+  if(!localOrders[item]) return;
+  localOrders[item].qty+=change;
+  if(localOrders[item].qty<=0) delete localOrders[item];
+  renderCheckoutItems();
+  updateTotal();
+}
+function openCheckout(){
+  renderCheckoutItems();
   var empInput=document.getElementById('employeeName');
   if(currentEmployee&&empInput){empInput.value=currentEmployee;empInput.readOnly=true;empInput.style.opacity='0.6';}
   document.getElementById('orderPopup').classList.add('active');
