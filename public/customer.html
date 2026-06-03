@@ -361,7 +361,7 @@ function renderMenuList(container,sec){
           ? '<span class="out-of-stock-label">Out of Stock</span>'
           : '<div class="menu-list-item-controls">'+
               (isFlavorItem(name)?'<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+escapedName+'\','+price+')"'
-              +' style="display:none;margin-right:6px;padding:5px 10px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:12px;font-weight:700;cursor:pointer;">Pick Flavor</button>':'')+
+              +' style="display:none;margin-right:8px;padding:7px 14px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;">Pick Flavor</button>':'')+
               '<button onclick="changeQty(\''+escapedName+'\',-1,'+price+')">&#8722;</button>'+
               '<div class="qty" id="'+safeId+'">'+qty+'</div>'+
               '<button onclick="changeQty(\''+escapedName+'\',1,'+price+')">&#43;</button>'+
