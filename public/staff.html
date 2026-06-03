@@ -1060,7 +1060,9 @@ function renderMenuList(sec){
     return '<div class="menu-list-item'+(disabled?' disabled-row':'')+'" id="row_'+name.replace(/[^a-zA-Z0-9]/g,'_')+'">'+
       thumbHtml+
       '<div class="menu-list-item-info"><h3>'+name+'</h3>'+
-      '<div class="price">'+price.toFixed(3)+' BD</div></div>'+
+      '<div class="price">'+price.toFixed(3)+' BD</div>'+
+      (isFlavorItem(name)?'<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')" style="display:none;margin-top:6px;padding:7px 16px;border:none;border-radius:10px;background:#f3cf89;color:#1c120b;font-size:13px;font-weight:700;cursor:pointer;">Pick Flavor</button>':'')+
+      '</div>'+
       '<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'+
         (disabled
           ? '<span class="out-of-stock-label">Out of Stock</span>'
@@ -1071,12 +1073,6 @@ function renderMenuList(sec){
             '</div>'
         )+
       '</div>'+
-    (isFlavorItem(name)?
-      '<div style="padding:4px 12px 8px;display:flex;justify-content:flex-end;">'+
-        '<button id="fpbtn_'+safeId+'" onclick="openFlavorPick(\''+esc(name)+'\','+price+')" '+
-        'style="display:none;padding:9px 22px;border:none;border-radius:12px;background:#f3cf89;color:#1c120b;font-size:14px;font-weight:700;cursor:pointer;">Pick Flavor</button>'+
-      '</div>'
-    :'')+
     '</div>';
   }).join('');
 }
