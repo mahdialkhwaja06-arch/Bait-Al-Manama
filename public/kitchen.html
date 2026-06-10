@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen Display — Bait Al-Manama</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+body{background:#111;color:white;min-height:100vh;padding:16px;}
+header{text-align:center;padding:14px 0 18px;}
+header h1{font-size:26px;color:#f3cf89;letter-spacing:1px;}
+header p{color:#9a8a7a;font-size:13px;margin-top:2px;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+.card{background:#1e1e1e;border-radius:20px;padding:20px;border:2px solid #2a2a2a;position:relative;transition:border-color 0.3s;}
+.card.done-card{border-color:#2e7d32;background:#1a2e1a;}
+.ticket-badge{display:inline-block;background:#f3cf89;color:#1c120b;border-radius:10px;padding:4px 14px;font-size:15px;font-weight:800;margin-bottom:10px;}
+.table-label{font-size:22px;font-weight:800;color:#fff;margin-bottom:6px;}
+.items-list{margin:10px 0;border-top:1px solid #333;padding-top:10px;}
+.item-row{display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #2a2a2a;font-size:15px;}
+.item-row .qty{background:#333;border-radius:6px;padding:1px 8px;font-weight:700;color:#f3cf89;}
+.notes-box{background:#2a2010;border-radius:10px;padding:8px 12px;font-size:13px;color:#f5e2ba;margin-top:8px;}
+.time-label{color:#9a8a7a;font-size:12px;margin-bottom:6px;}
+.ready-btn{width:100%;padding:13px;border:none;border-radius:14px;background:#f3cf89;color:#1c120b;font-size:16px;font-weight:800;cursor:pointer;margin-top:14px;transition:background 0.2s;}
+.ready-btn:hover{background:#e0b96e;}
+.done-label{text-align:center;color:#4caf50;font-weight:700;font-size:16px;margin-top:14px;padding:10px;background:#1a3a1a;border-radius:12px;}
+.empty{text-align:center;padding:60px 20px;color:#555;font-size:18px;}
+.top-bar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding:0 4px;}
+.live-dot{display:inline-block;width:10px;height:10px;background:#4caf50;border-radius:50%;margin-right:6px;animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.order-age{font-size:11px;color:#9a8a7a;}
+</style>
+</head>
+<body>
+<header>
+<h1>🍽 Kitchen Display</h1>
+<p>Bait Al-Manama</p>
+</header>
+
+<div class="top-bar">
+<div><span class="live-dot"></span><span style="font-size:14px;color:#9a8a7a;">Live Updates</span></div>
+<div id="orderCount" style="font-size:14px;color:#f3cf89;font-weight:700;"></div>
+</div>
+
+<div class="grid" id="ordersGrid">
+<div class="empty">Loading orders...</div>
+</div>
+
+<script>
+var ordersData = [];
+
+function timeSince(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr);
+  var mins = Math.floor((Date.now() - d.getTime()) / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins === 1) return '1 min ago';
+  return mins + ' mins ago';
+}
+
+function renderOrders() {
+  var grid = document.getElementById('ordersGrid');
+  var count = document.getElementById('orderCount');
+  var active = ordersData.filter(function(o) { return o.status === 'active'; });
+  count.innerText = active.length + ' active order' + (active.length !== 1 ? 's' : '');
+  if (active.length === 0) {
+    grid.innerHTML = '<div class="empty">✅ No active orders — all clear!</div>';
+    return;
+  }
+  // Sort: not-done first, then by created_at
+  active.sort(function(a, b) {
+    var aDone = !!(a.completed_at || a.completedAt);
+    var bDone = !!(b.completed_at || b.completedAt);
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return new Date(a.created_at || a.createdAt) - new Date(b.created_at || b.createdAt);
+  });
+  grid.innerHTML = active.map(function(order) {
+    var items = typeof order.items === 'string' ? JSON.parse(order.items || '[]') : (order.items || []);
+    var isDone = !!(order.completed_at || order.completedAt);
+    var tNo = order.ticket_no || order.id;
+    var tableNo = order.table_number || order.tableNumber || '?';
+    var created = order.created_at || order.createdAt || '';
+    var notes = order.notes || '';
+    return '<div class="card' + (isDone ? ' done-card' : '') + '">' +
+      '<div class="ticket-badge">#' + tNo + '</div>' +
+      '<div class="table-label">Table ' + tableNo + '</div>' +
+      '<div class="order-age">' + timeSince(created) + '</div>' +
+      '<div class="items-list">' +
+        items.map(function(i) {
+          return '<div class="item-row"><span>' + i.name + '</span><span class="qty">x' + i.qty + '</span></div>';
+        }).join('') +
+      '</div>' +
+      (notes ? '<div class="notes-box">📝 ' + notes + '</div>' : '') +
+      (isDone
+        ? '<div class="done-label">✅ Ready — Waiting for pickup</div>'
+        : '<button class="ready-btn" onclick="markReady(' + order.id + ')">✅ Mark as Ready</button>'
+      ) +
+    '</div>';
+  }).join('');
+}
+
+function markReady(id) {
+  fetch('/api/orders/' + id + '/done', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  }).then(function() { loadOrders(); }).catch(function() {});
+}
+
+function loadOrders() {
+  fetch('/api/orders?t=' + Date.now())
+    .then(function(r) { return r.json(); })
+    .then(function(d) { ordersData = d; renderOrders(); })
+    .catch(function() {});
+}
+
+loadOrders();
+setInterval(loadOrders, 3000);
+</script>
+</body>
+</html>

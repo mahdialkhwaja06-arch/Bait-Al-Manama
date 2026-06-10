@@ -270,6 +270,17 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 <div class="popup-header"><h2>Order Summary</h2><button class="close-btn" onclick="closeCheckout()">&#10005;</button></div>
 <div id="orderItemsList" style="margin-bottom:12px;"></div>
 <div class="total">Total: <span id="total">0.000</span> BD</div>
+<div style="display:flex;align-items:center;gap:8px;margin:10px 0 2px;flex-wrap:wrap;">
+  <span style="color:#5a4a3a;font-size:14px;font-weight:700;">Discount:</span>
+  <input type="number" id="discountPct" placeholder="%" min="0" max="100" style="width:60px;padding:6px 8px;border-radius:10px;border:1.5px solid #d4c4a8;font-size:14px;font-family:inherit;">
+  <span style="color:#5a4a3a;font-size:13px;">%</span>
+  <span style="color:#9a8a7a;font-size:13px;">or</span>
+  <input type="number" id="discountAmt" placeholder="BD" min="0" step="0.001" style="width:72px;padding:6px 8px;border-radius:10px;border:1.5px solid #d4c4a8;font-size:14px;font-family:inherit;">
+  <span style="color:#5a4a3a;font-size:13px;">BD</span>
+  <button onclick="applyDiscount()" style="background:#1c120b;color:#f3cf89;border:none;padding:7px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">Apply</button>
+  <button id="clearDiscountBtn" onclick="clearDiscount()" style="display:none;background:#e8dcc8;color:#5a4a3a;border:none;padding:7px 10px;border-radius:10px;font-size:13px;cursor:pointer;">✕</button>
+</div>
+<div id="discountLine" style="display:none;color:#2e7d32;font-size:14px;font-weight:700;margin-bottom:4px;"></div>
 <div class="order-inputs">
 <div class="order-inputs-row">
 <input type="text" id="employeeName" placeholder="Employee Name">
@@ -849,7 +860,9 @@ function buildHomeGrid(){
     {id:'calloutsPage',img:'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800',label:'Callouts <span id="calloutCountBadge" class="new-order-badge" style="display:none;background:#ff6b35;">0</span>'},
     {id:'manageItemsPage',img:'https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=800',label:'Manage Items'},
     {id:'inventoryPage',img:'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=800',label:'&#128230; Inventory'},
-    {id:'manualPage',img:'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=800',label:'&#128218; Employee Manual'}
+    {id:'manualPage',img:'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=800',label:'&#128218; Employee Manual'},
+    {id:'__kitchen__',img:'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=800',label:'&#128256; Kitchen Display'},
+    {id:'__qrcodes__',img:'https://images.unsplash.com/photo-1559526323-cb2f2fe2591b?q=80&w=800',label:'&#128379; Table QR Codes'}
   ];
   mgmtCards.forEach(function(c){
     html+='<div class="section-card" onclick="openPage(\''+c.id+'\')">'+
@@ -949,6 +962,7 @@ function buildMenuPages(){
       '<button id="ptab-today" class="report-btn" style="flex:1;" onclick="setPaidFilter(\'today\')">&#128197; Today</button>'+
       '<button id="ptab-month" class="report-btn" style="flex:1;background:#6a4e2a;" onclick="setPaidFilter(\'month\')">&#128336; This Month</button>'+
       '<button id="ptab-all" class="report-btn" style="flex:1;background:#3a2a1a;" onclick="setPaidFilter(\'all\')">&#128196; All Time</button>'+
+      '<button onclick="showDailyReport()" style="background:#2e7d32;color:white;border:none;padding:12px 16px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;width:100%;margin:8px 20px 0;">&#128202; Today\'s End-of-Day Report</button>'+
     '</div>'+
     '<div style="display:flex;gap:8px;padding:0 20px 8px;flex-wrap:wrap;">'+
       '<button class="report-btn" style="flex:1;" onclick="sendReport()">&#128172; Daily Report</button>'+
@@ -1638,6 +1652,8 @@ function openPage(id){
   var target=document.getElementById('menupage_'+id)||document.getElementById(id);
   if(target) target.classList.add('active');
   scrollTop();
+  if(id==='__kitchen__'){ window.open('/kitchen.html','_blank'); return; }
+  if(id==='__qrcodes__'){ window.open('/qr-tables.html','_blank'); return; }
   if(id==='activeOrdersPage') loadActiveOrders();
   if(id==='paidTicketsPage') loadPaidTickets();
   if(id==='calloutsPage') loadCallouts();
@@ -1796,6 +1812,7 @@ function sendOrder(){
     }
   }
   if(itemsList.length===0) return;
+  total=Math.max(0,Math.round((total-discountValue)*1000)/1000);
   var sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true; sendBtn.innerText='Saving...';
   fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerName:employee,tableNumber:table,items:itemsList,total:total,notes:notes})})
   .then(function(res){if(!res.ok)throw new Error('Failed');return res.json();})
@@ -1804,6 +1821,7 @@ function sendOrder(){
   .finally(function(){sendBtn.disabled=false;sendBtn.innerText='Add to Active Orders';});
 }
 function resetOrder(){
+  discountValue=0;
   for(var item in localOrders){localOrders[item].qty=0;}
   document.querySelectorAll('.qty').forEach(function(el){el.innerText='0';});
   if(!currentEmployee) document.getElementById('employeeName').value='';
@@ -1829,12 +1847,8 @@ function loadActiveOrders(){
     if(prevOrderIds!==null){
       activeOrdersData.forEach(function(order){
         if(prevOrderIds.indexOf(order.id)===-1){
-          if('speechSynthesis' in window){
-            window.speechSynthesis.cancel();
-            var msg=new SpeechSynthesisUtterance('New Order');
-            msg.lang='en-US'; msg.rate=0.85; msg.volume=1;
-            window.speechSynthesis.speak(msg);
-          }
+          var tNo=order.ticket_no||order.id;
+          speak('New Order. Ticket '+tNo+'. Table '+(order.table_number||order.tableNumber||'unknown'));
           if('vibrate' in navigator) navigator.vibrate([300,100,300,100,300]);
         }
       });
@@ -1842,6 +1856,7 @@ function loadActiveOrders(){
     prevOrderIds=activeOrdersData.map(function(o){return o.id;});
     renderActiveOrders();
     updateBadge();
+    renderTableGrid();
   }).catch(function(){});
 }
 function renderActiveOrders(){
@@ -1853,7 +1868,10 @@ function renderActiveOrders(){
     var isCompleted=!!(order.completed_at||order.completedAt);
     return '<div class="order-card">'+
       '<div class="order-timer" id="timer_'+order.id+'" data-created="'+(order.created_at||order.createdAt||new Date().toISOString())+'" data-completed="'+safeCompletedAt(order)+'"></div>'+
-      '<div class="employee-badge">&#128100; '+(order.customer_name||order.customerName)+'</div>'+
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">'+
+        '<div style="background:#f3cf89;color:#1c120b;border-radius:10px;padding:3px 10px;font-size:13px;font-weight:800;">#'+(order.ticket_no||order.id)+'</div>'+
+        '<div class="employee-badge" style="margin-bottom:0;">&#128100; '+(order.customer_name||order.customerName)+'</div>'+
+      '</div>'+
       (order.phone_number||order.phoneNumber?'<div style="color:#f5e2ba;font-size:14px;margin-bottom:6px;">&#128222; '+(order.phone_number||order.phoneNumber)+'</div>':'')+
       '<h3>Table '+(order.table_number||order.tableNumber)+'</h3>'+
       '<p>'+items.map(function(i){return i.name+' x'+i.qty;}).join('<br>')+'</p>'+
@@ -1944,13 +1962,21 @@ function openEditModal(id){
       '</div></div>';
   });
   html+='<div class="modal-section" style="margin-top:16px;">Add Items</div>';
-  allItems.forEach(function(ai){
-    if(editItems[ai.name]) return;
-    html+='<div class="modal-item-row"><span>'+ai.name+' ('+ai.price.toFixed(3)+' BD)</span>'+
-      '<div class="m-controls">'+
-        '<button onclick="editQty(\''+esc(ai.name)+'\','+ai.price+',1)">+</button>'+
-        '<div class="m-qty" id="mq_'+ai.name.replace(/[^a-zA-Z0-9]/g,'_')+'">0</div>'+
-      '</div></div>';
+  var secOrder=Object.keys(menu);
+  secOrder.forEach(function(sec){
+    var secItems=[];
+    (menu[sec]||[]).forEach(function(item){
+      if(!editItems[item[0]]) secItems.push({name:item[0],price:item[1]});
+    });
+    if(secItems.length===0) return;
+    html+='<div class="modal-section" style="margin-top:10px;font-size:13px;color:#f3cf89;padding:4px 0;border-bottom:1px solid rgba(243,207,137,0.2);">'+(sectionLabels[sec]||sec)+'</div>';
+    secItems.forEach(function(ai){
+      html+='<div class="modal-item-row"><span>'+ai.name+' ('+ai.price.toFixed(3)+' BD)</span>'+
+        '<div class="m-controls">'+
+          '<button onclick="editQty(\\''+esc(ai.name)+'\\',' +ai.price+',1)">+</button>'+
+          '<div class="m-qty" id="mq_'+ai.name.replace(/[^a-zA-Z0-9]/g,'_')+'">0</div>'+
+        '</div></div>';
+    });
   });
   document.getElementById('editModalContent').innerHTML=html;
   document.getElementById('editModal').classList.add('active');
@@ -2053,6 +2079,7 @@ function loadCallouts(){
     }
     prevCalloutIds=calloutsData.map(function(c){return c.id;});
     renderCallouts();
+    renderTableGrid();
     var badge=document.getElementById('calloutCountBadge');
     if(badge){
       if(calloutsData.length>0){badge.innerText=calloutsData.length;badge.style.display='inline-block';}
@@ -2161,13 +2188,149 @@ function updateRevenue(){
   }).catch(function(){});
 }
 
+
+/* ───── speak helper ───── */
+function speak(text){
+  if(!text||!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  var msg=new SpeechSynthesisUtterance(text);
+  msg.lang='en-US'; msg.rate=0.85; msg.volume=1;
+  window.speechSynthesis.speak(msg);
+}
+
+/* ───── Latest event sound announcements ───── */
+var lastEventTs=0;
+function checkLatestEvent(){
+  fetch('/api/latest-event?t='+Date.now())
+  .then(function(r){return r.json();})
+  .then(function(ev){
+    if(ev.ts && ev.ts!==lastEventTs && (Date.now()-ev.ts)<30000){
+      lastEventTs=ev.ts;
+      if(ev.event==='done') speak('Ticket '+ev.ticketNo+' is ready');
+      if(ev.event==='paid'){
+        var m=ev.method||'Cash';
+        speak('Ticket '+ev.ticketNo+', table '+ev.tableNo+', paid '+Number(ev.total).toFixed(3)+' BD by '+m);
+      }
+      if('vibrate' in navigator) navigator.vibrate([200,80,200]);
+    }
+  }).catch(function(){});
+}
+
+/* ───── Table Status Grid ───── */
+function renderTableGrid(){
+  var grid=document.getElementById('tableStatusGrid');
+  if(!grid) return;
+  var html='';
+  for(var t=1;t<=10;t++){
+    var ts=String(t);
+    var hasOrder=activeOrdersData.some(function(o){return (o.table_number||o.tableNumber)===ts;});
+    var hasCallout=calloutsData&&calloutsData.some(function(c){return (c.table_number||c.tableNumber)===ts;});
+    var bg=hasCallout?'#ff6b35':hasOrder?'#f3cf89':'rgba(255,255,255,0.1)';
+    var tc=hasCallout?'#fff':hasOrder?'#1c120b':'#aaa';
+    var icon=hasCallout?'🔔':hasOrder?'🍽':'✓';
+    html+='<div onclick="tableGridTap(''+ts+'')" style="background:'+bg+';color:'+tc+';border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;border:1px solid rgba(255,255,255,0.07);">'+
+      '<div style="font-size:10px;font-weight:600;opacity:0.8;">T</div>'+
+      '<div style="font-size:20px;font-weight:800;line-height:1.1;">'+t+'</div>'+
+      '<div style="font-size:14px;">'+icon+'</div>'+
+    '</div>';
+  }
+  grid.innerHTML=html;
+}
+function tableGridTap(tableNo){
+  var order=activeOrdersData.find(function(o){return (o.table_number||o.tableNumber)===tableNo;});
+  if(order){openPage('activeOrdersPage');}
+  else{
+    var sel=document.getElementById('tableNumber');
+    if(sel){sel.value=tableNo;}
+    document.getElementById('checkoutBtn').classList.add('active');
+  }
+}
+
+/* ───── Discount ───── */
+var discountValue=0;
+function applyDiscount(){
+  var rawTotal=0;
+  for(var item in localOrders){ if(localOrders[item].qty>0) rawTotal+=localOrders[item].qty*localOrders[item].price; }
+  rawTotal=Math.round(rawTotal*1000)/1000;
+  var pct=parseFloat(document.getElementById('discountPct').value)||0;
+  var amt=parseFloat(document.getElementById('discountAmt').value)||0;
+  var disc=0;
+  if(pct>0) disc=Math.round(rawTotal*(pct/100)*1000)/1000;
+  else if(amt>0) disc=Math.min(Math.round(amt*1000)/1000, rawTotal);
+  discountValue=disc;
+  var finalTotal=Math.max(0,Math.round((rawTotal-disc)*1000)/1000);
+  document.getElementById('total').innerText=finalTotal.toFixed(3);
+  var dl=document.getElementById('discountLine');
+  var cb=document.getElementById('clearDiscountBtn');
+  if(disc>0){
+    dl.style.display='block';
+    dl.innerText='✓ Discount: -'+disc.toFixed(3)+' BD (was '+rawTotal.toFixed(3)+' BD)';
+    cb.style.display='inline-block';
+  }
+}
+function clearDiscount(){
+  discountValue=0;
+  document.getElementById('discountPct').value='';
+  document.getElementById('discountAmt').value='';
+  document.getElementById('discountLine').style.display='none';
+  document.getElementById('clearDiscountBtn').style.display='none';
+  renderCheckoutItems();
+}
+
+/* ───── End-of-Day Report ───── */
+function showDailyReport(){
+  var today=new Date();
+  var sod=new Date(today.getFullYear(),today.getMonth(),today.getDate(),0,0,0);
+  var todayTickets=paidTicketsData.filter(function(o){
+    return new Date(o.paid_at||o.paidAt||o.created_at||o.createdAt)>=sod;
+  });
+  var totalRev=todayTickets.reduce(function(s,o){return s+Number(o.total);},0);
+  var itemCounts={};
+  todayTickets.forEach(function(o){
+    var items=typeof o.items==='string'?JSON.parse(o.items||'[]'):o.items||[];
+    items.forEach(function(i){ itemCounts[i.name]=(itemCounts[i.name]||0)+i.qty; });
+  });
+  var methodTotals={};
+  todayTickets.forEach(function(o){
+    var pm=o.payment_method||'Cash';
+    if(pm.startsWith('[')){
+      try{JSON.parse(pm).forEach(function(s){ methodTotals[s.method]=(methodTotals[s.method]||0)+Number(s.amount); });}catch(e){}
+    } else { methodTotals[pm]=(methodTotals[pm]||0)+Number(o.total); }
+  });
+  var topItems=Object.entries(itemCounts).sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+  var topHtml=topItems.length?topItems.map(function(e,i){
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e8dcc8;">'+
+      '<span>'+(i+1)+'. '+e[0]+'</span><span style="font-weight:700;">x'+e[1]+'</span></div>';
+  }).join(''):'<div style="color:#9a8a7a;">No data</div>';
+  var methodHtml=Object.entries(methodTotals).map(function(e){
+    return '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #e8dcc8;">'+
+      '<span>'+e[0]+'</span><span style="font-weight:700;">'+Number(e[1]).toFixed(3)+' BD</span></div>';
+  }).join('')||'<div style="color:#9a8a7a;">No data</div>';
+  var d=today.toLocaleDateString('en-BH',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+  document.getElementById('reportContent').innerHTML=
+    '<div style="background:#f3cf89;border-radius:14px;padding:16px;margin-bottom:16px;text-align:center;">'+
+      '<div style="font-size:13px;color:#5a4a3a;">'+d+'</div>'+
+      '<div style="font-size:32px;font-weight:800;color:#1c120b;">'+totalRev.toFixed(3)+' BD</div>'+
+      '<div style="font-size:14px;color:#5a4a3a;">'+todayTickets.length+' order'+(todayTickets.length!==1?'s':'')+'</div>'+
+    '</div>'+
+    '<div style="font-weight:700;margin-bottom:8px;color:#1c120b;">🏆 Top Items</div>'+topHtml+
+    '<div style="font-weight:700;margin:16px 0 8px;color:#1c120b;">💳 Payment Methods</div>'+methodHtml;
+  var m=document.getElementById('reportModal');
+  m.style.display='flex';
+}
+function closeReportModal(){
+  document.getElementById('reportModal').style.display='none';
+}
+
 function startPolling(){
   requestWakeLock();
   setInterval(checkDataVersion,2000);
   setInterval(checkMenuVersion,2000);
+  setInterval(checkLatestEvent,2000);
   setInterval(updateRevenue,15000);
   updateRevenue();
   setupWebPush();
+  checkLatestEvent();
 }
 
 /* ── Web Push Registration ── */
@@ -2705,6 +2868,16 @@ document.addEventListener('DOMContentLoaded',function(){showEmployeeBadge();load
   <button onclick="saveStock()" style="width:100%;padding:14px;border:none;border-radius:14px;background:#1c120b;color:white;font-size:16px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;margin-bottom:10px;">Save</button>
   <button onclick="clearStock()" style="width:100%;padding:10px;border:none;border-radius:12px;background:rgba(229,57,53,0.12);color:#c62828;font-size:13px;cursor:pointer;font-family:'Cairo',sans-serif;margin-bottom:8px;">Remove Stock Tracking</button>
   <button onclick="closeStockModal()" style="width:100%;padding:10px;border:none;border-radius:12px;background:rgba(28,18,11,0.08);color:#5a4a3a;font-size:13px;cursor:pointer;font-family:'Cairo',sans-serif;">Cancel</button>
+</div>
+</div>
+
+<div id="reportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.88);z-index:9999;align-items:center;justify-content:center;padding:20px;">
+<div style="background:#fff4df;border-radius:24px;padding:28px 24px;width:100%;max-width:460px;max-height:88vh;overflow-y:auto;color:#1c120b;">
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+<h2 style="font-size:22px;">📊 Today's Report</h2>
+<button onclick="closeReportModal()" style="background:#e8dcc8;border:none;border-radius:12px;padding:8px 14px;font-size:16px;cursor:pointer;">✕</button>
+</div>
+<div id="reportContent"></div>
 </div>
 </div>
 </body>

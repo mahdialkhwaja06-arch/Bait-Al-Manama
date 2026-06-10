@@ -49,6 +49,13 @@ async function notifyAllDevices(kv, title, body) {
 }
 // ─────────────────────────────────────────────────────────────
 
+// ── Bahrain date helper (UTC+3) ───────────────────────────────
+function getBahrainDate() {
+  const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  return now.toISOString().split('T')[0]; // YYYY-MM-DD
+}
+// ─────────────────────────────────────────────────────────────
+
 function base64ToBuffer(base64) {
   const b64 = base64.includes(',') ? base64.split(',')[1] : base64;
   const binary = atob(b64);
@@ -134,6 +141,10 @@ export default {
       // ── Data version (orders + stock + callouts) ─────────────
       if (method==='GET' && path_raw==='/data-version')
         return respond(await readKV('data-version:v', { t:0 }));
+
+      // ── Latest sound event (for announcements) ────────────────
+      if (method==='GET' && path_raw==='/latest-event')
+        return respond(await readKV('latest-event:data', { event:null, ts:0 }));
 
       // ── Web Push endpoints ────────────────────────────────────
       if (method==='GET' && path_raw==='/vapid-public-key')
@@ -259,7 +270,13 @@ export default {
       if (method==='POST' && path_raw==='/orders') {
         const orders = await readKV('orders:all', []);
         const maxId = orders.reduce((m,o) => Math.max(m,o.id), 0);
-        const newOrder = { id:maxId+1, customer_name:body.customerName||'', phone_number:body.phoneNumber||'', table_number:body.tableNumber||'', items:JSON.stringify(body.items||[]), total:body.total||0, notes:body.notes||'', status:'active', payment_method:null, completed_at:null, paid_at:null, created_at:new Date().toISOString() };
+        // ── Daily ticket counter (resets each day, Bahrain time) ──
+        const dateKey = 'daily-ticket:' + getBahrainDate();
+        const ticketData = await readKV(dateKey, { counter: 0 });
+        ticketData.counter += 1;
+        await writeKV(dateKey, ticketData);
+        const ticketNo = ticketData.counter;
+        const newOrder = { id:maxId+1, ticket_no:ticketNo, customer_name:body.customerName||'', phone_number:body.phoneNumber||'', table_number:body.tableNumber||'', items:JSON.stringify(body.items||[]), total:body.total||0, notes:body.notes||'', status:'active', payment_method:null, completed_at:null, paid_at:null, created_at:new Date().toISOString() };
         orders.push(newOrder);
         await writeKV('orders:all', orders);
         // ── Deduct plate stock on placement ──────────────────
@@ -311,6 +328,10 @@ export default {
         const idx = orders.findIndex(o => o.id === parseInt(doneMatch[1]));
         if (idx !== -1) orders[idx].completed_at = new Date().toISOString();
         await writeKV('orders:all', orders);
+        if (idx !== -1) {
+          const o = orders[idx];
+          await writeKV('latest-event:data', { event:'done', ticketNo: o.ticket_no||o.id, tableNo: o.table_number||'?', ts: Date.now() });
+        }
         ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
@@ -320,6 +341,15 @@ export default {
         const idx = orders.findIndex(o => o.id === parseInt(paidMatch[1]));
         if (idx !== -1) { orders[idx].status='paid'; orders[idx].payment_method=body.paymentMethod||'Cash'; orders[idx].paid_at=new Date().toISOString(); }
         await writeKV('orders:all', orders);
+        if (idx !== -1) {
+          const o = orders[idx];
+          const pmRaw = body.paymentMethod || 'Cash';
+          let methodLabel = pmRaw;
+          if (pmRaw.startsWith('[')) {
+            try { methodLabel = JSON.parse(pmRaw).map(s=>s.method).join(' + '); } catch(e) {}
+          }
+          await writeKV('latest-event:data', { event:'paid', ticketNo: o.ticket_no||o.id, tableNo: o.table_number||'?', total: o.total, method: methodLabel, ts: Date.now() });
+        }
         ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }

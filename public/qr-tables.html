@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Table QR Codes — Bait Al-Manama</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Cairo',sans-serif;}
+body{background:#f5f0e8;padding:24px;}
+h1{text-align:center;font-size:26px;color:#1c120b;margin-bottom:6px;}
+.subtitle{text-align:center;color:#9a8a7a;font-size:14px;margin-bottom:24px;}
+.print-btn{display:block;margin:0 auto 28px;background:#1c120b;color:#f3cf89;border:none;padding:12px 32px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;font-family:'Cairo',sans-serif;}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:20px;max-width:1100px;margin:0 auto;}
+.qr-card{background:white;border-radius:20px;padding:22px 18px 18px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,0.10);border:2px solid #e8dcc8;}
+.qr-card .restaurant-name{font-size:14px;color:#9a8a7a;margin-bottom:4px;font-weight:600;}
+.qr-card .table-title{font-size:28px;font-weight:800;color:#1c120b;margin-bottom:12px;}
+.qr-container{display:flex;justify-content:center;margin-bottom:12px;}
+.qr-card .instruction{font-size:12px;color:#9a8a7a;line-height:1.4;}
+.qr-card .scan-icon{font-size:20px;margin-bottom:2px;}
+@media print {
+  .print-btn, .subtitle-print { display: none !important; }
+  body { background: white; padding: 12px; }
+  .grid { grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .qr-card { break-inside: avoid; box-shadow: none; border: 1.5px solid #ccc; }
+}
+</style>
+</head>
+<body>
+
+<h1>🍽 Bait Al-Manama</h1>
+<p class="subtitle">Table QR Codes — Scan to view menu & call staff</p>
+
+<button class="print-btn" onclick="window.print()">🖨 Print All QR Codes</button>
+
+<div class="grid" id="qrGrid"></div>
+
+<script>
+// Change this to your actual deployed Cloudflare URL
+var BASE_URL = window.location.origin;
+
+var grid = document.getElementById('qrGrid');
+
+for (var t = 1; t <= 10; t++) {
+  var tableUrl = BASE_URL + '/customer.html?table=' + t;
+
+  var card = document.createElement('div');
+  card.className = 'qr-card';
+  card.innerHTML =
+    '<div class="restaurant-name">Bait Al-Manama</div>' +
+    '<div class="table-title">Table ' + t + '</div>' +
+    '<div class="qr-container" id="qr' + t + '"></div>' +
+    '<div class="scan-icon">📱</div>' +
+    '<div class="instruction">Scan to browse menu<br>& call staff to your table</div>';
+
+  grid.appendChild(card);
+
+  new QRCode(document.getElementById('qr' + t), {
+    text: tableUrl,
+    width: 160,
+    height: 160,
+    colorDark: '#1c120b',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+  });
+}
+</script>
+</body>
+</html>
