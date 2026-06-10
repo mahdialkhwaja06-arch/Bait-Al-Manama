@@ -5,21 +5,34 @@
  */
 
 // ── ntfy.sh push notifications ────────────────────────────────
-// Change this to any topic name you want — subscribe to it in the ntfy app
-const NTFY_TOPIC = 'bait-almanama-staff';
+const NTFY_TOPIC = 'bam-hq-9r4k7x';   // <-- your private topic name
 
-async function notifyStaff(title, message, priority = 'high') {
+async function notifyStaff(title, message, priority) {
   try {
-    await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+    const pri = priority || 'high';
+    const res = await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
       method: 'POST',
       headers: {
-        'Title': title,
-        'Priority': priority,
-        'Tags': 'bell',
-        'Content-Type': 'text/plain',
+        'Content-Type': 'text/plain; charset=utf-8',
+        'X-Title': title,
+        'X-Priority': pri,
+        'X-Tags': 'bell',
       },
       body: message,
     });
+    if (!res.ok) {
+      // retry once on failure
+      await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'text/plain; charset=utf-8',
+          'X-Title': title,
+          'X-Priority': pri,
+          'X-Tags': 'bell',
+        },
+        body: message,
+      });
+    }
   } catch(e) {}
 }
 // ─────────────────────────────────────────────────────────────
@@ -246,10 +259,12 @@ export default {
         const tableLabel = body.tableNumber ? 'Table ' + body.tableNumber : 'No table';
         const itemSummary = (body.items||[]).map(i => i.name + ' x' + i.qty).join(', ');
         const totalStr = Number(body.total||0).toFixed(3) + ' BD';
-        ctx.waitUntil(Promise.all([
-          bumpDataVersion(),
-          notifyStaff('\uD83E\uDDFE New Order \u2013 ' + tableLabel, itemSummary + '\nTotal: ' + totalStr + (body.notes ? '\nNote: ' + body.notes : ''), 'high')
-        ]));
+        ctx.waitUntil(bumpDataVersion().catch(() => {}));
+        ctx.waitUntil(notifyStaff(
+          'New Order - ' + tableLabel,
+          'Items: ' + itemSummary + '\nTotal: ' + totalStr + (body.notes ? '\nNote: ' + body.notes : ''),
+          'high'
+        ).catch(() => {}));
         return respond({ id:newOrder.id });
       }
       const doneMatch = path_raw.match(/^\/orders\/(\d+)\/done$/);
@@ -354,14 +369,12 @@ export default {
         const maxId = callouts.reduce((m,c) => Math.max(m,c.id), 0);
         const nc = { id:maxId+1, table_number:body.tableNumber||'?', created_at:new Date().toISOString() };
         callouts.push(nc); await writeKV('callouts:all', callouts);
-        ctx.waitUntil(Promise.all([
-          bumpDataVersion(),
-          notifyStaff(
-            '\uD83D\uDD14 Table ' + (body.tableNumber||'?') + ' is calling!',
-            'A customer at table ' + (body.tableNumber||'?') + ' needs assistance.',
-            'urgent'
-          )
-        ]));
+        ctx.waitUntil(bumpDataVersion().catch(() => {}));
+        ctx.waitUntil(notifyStaff(
+          'Table ' + (body.tableNumber||'?') + ' is calling!',
+          'A customer at table ' + (body.tableNumber||'?') + ' needs your help.',
+          'urgent'
+        ).catch(() => {}));
         return respond({ id:nc.id });
       }
       const calloutDeleteMatch = path_raw.match(/^\/callouts\/(\d+)$/);
