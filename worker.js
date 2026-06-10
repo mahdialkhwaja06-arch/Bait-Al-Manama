@@ -4,35 +4,47 @@
  * Handles all /api/* routes via KV storage
  */
 
-// ── ntfy.sh push notifications ────────────────────────────────
-const NTFY_TOPIC = 'bam-hq-9r4k7x';   // <-- your private topic name
+// ── Web Push (Chrome notifications — no app needed) ───────────
+const VAPID_PUBLIC_KEY  = 'BFc_SttR5MObSucQbLl1sMbkNEEnV5JtqxBLmXpbd4tG0AajTQcUxUxRIiItVU4So2Mv7uvRgYB_p6xra0221lw';
+const VAPID_PRIVATE_KEY = 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgXsrGvGqcH13d9VQLKTboyOTHbdkVM4d9MrfQBEE0vGShRANCAARXP0rbUeTDm0rnEGy5dbDG5DRBJ1eSbasQS5l6W3eLRtAGo00HFMVMUSIiLVVOEqNjL-7r0YGAf6esa2tNttZc';
 
-async function notifyStaff(title, message, priority) {
+function b64uDec(s) {
+  return Uint8Array.from(atob(s.replace(/-/g,'+').replace(/_/g,'/')), c => c.charCodeAt(0));
+}
+function b64uEnc(buf) {
+  return btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'');
+}
+
+async function makeVapidAuth(endpoint) {
+  const origin = new URL(endpoint).origin;
+  const exp = Math.floor(Date.now()/1000) + 43200;
+  const hdr = b64uEnc(new TextEncoder().encode(JSON.stringify({typ:'JWT',alg:'ES256'})));
+  const pld = b64uEnc(new TextEncoder().encode(JSON.stringify({aud:origin,exp,sub:'mailto:admin@bait-almanama.bh'})));
+  const input = hdr + '.' + pld;
+  const pk = await crypto.subtle.importKey('pkcs8', b64uDec(VAPID_PRIVATE_KEY), {name:'ECDSA',namedCurve:'P-256'}, false, ['sign']);
+  const sig = await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'}, pk, new TextEncoder().encode(input));
+  return 'vapid t=' + input + '.' + b64uEnc(sig) + ',k=' + VAPID_PUBLIC_KEY;
+}
+
+async function sendOnePush(sub) {
   try {
-    const pri = priority || 'high';
-    const res = await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+    const auth = await makeVapidAuth(sub.endpoint);
+    const r = await fetch(sub.endpoint, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'X-Title': title,
-        'X-Priority': pri,
-        'X-Tags': 'bell',
-      },
-      body: message,
+      headers: { Authorization: auth, TTL: '60', Urgency: 'high' },
     });
-    if (!res.ok) {
-      // retry once on failure
-      await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'text/plain; charset=utf-8',
-          'X-Title': title,
-          'X-Priority': pri,
-          'X-Tags': 'bell',
-        },
-        body: message,
-      });
-    }
+    return r.status;
+  } catch(e) { return null; }
+}
+
+async function notifyAllDevices(kv, title, body) {
+  try {
+    await kv.put('push-latest:data', JSON.stringify({ title, body }));
+    const subs = JSON.parse(await kv.get('push-subs:all') || '[]');
+    if (!subs.length) return;
+    const results = await Promise.all(subs.map(async sub => ({ sub, status: await sendOnePush(sub) })));
+    const valid = results.filter(r => r.status !== 410 && r.status !== 404).map(r => r.sub);
+    if (valid.length < subs.length) await kv.put('push-subs:all', JSON.stringify(valid));
   } catch(e) {}
 }
 // ─────────────────────────────────────────────────────────────
@@ -83,7 +95,14 @@ export default {
 
     // ── Serve static HTML for non-API routes ──────────────────
     if (!url.pathname.startsWith('/api')) {
-      return env.ASSETS.fetch(request);
+      const resp = await env.ASSETS.fetch(request);
+      if (url.pathname === '/sw.js') {
+        const r = new Response(resp.body, resp);
+        r.headers.set('Cache-Control', 'no-cache');
+        r.headers.set('Service-Worker-Allowed', '/');
+        return r;
+      }
+      return resp;
     }
 
     // ── CORS preflight ────────────────────────────────────────
@@ -115,6 +134,26 @@ export default {
       // ── Data version (orders + stock + callouts) ─────────────
       if (method==='GET' && path_raw==='/data-version')
         return respond(await readKV('data-version:v', { t:0 }));
+
+      // ── Web Push endpoints ────────────────────────────────────
+      if (method==='GET' && path_raw==='/vapid-public-key')
+        return respond({ key: VAPID_PUBLIC_KEY });
+      if (method==='GET' && path_raw==='/push-latest')
+        return respond(await readKV('push-latest:data', { title:'Bait Al-Manama', body:'Tap to open' }));
+      if (method==='POST' && path_raw==='/push-subscribe') {
+        if (!body.endpoint) return respond({ error:'invalid' }, 400);
+        const subs = JSON.parse(await kv.get('push-subs:all') || '[]');
+        const others = subs.filter(s => s.endpoint !== body.endpoint);
+        others.push(body);
+        await kv.put('push-subs:all', JSON.stringify(others));
+        return respond({ ok:true });
+      }
+      if (method==='POST' && path_raw==='/push-unsubscribe') {
+        if (!body.endpoint) return respond({ error:'invalid' }, 400);
+        const subs = JSON.parse(await kv.get('push-subs:all') || '[]');
+        await kv.put('push-subs:all', JSON.stringify(subs.filter(s => s.endpoint !== body.endpoint)));
+        return respond({ ok:true });
+      }
 
       // ── Section status ──────────────────────────────────────
       if (method==='GET' && path_raw==='/section-status')
@@ -255,15 +294,14 @@ export default {
           if (invChanged) await writeKV('inventory:all', invItems);
           if (disabledChanged2) { await writeKV('disabled-items:data', disabled2); await bumpVersion(); }
         } catch(e) {}
-        // ntfy notification
+        // Web Push notification
         const tableLabel = body.tableNumber ? 'Table ' + body.tableNumber : 'No table';
         const itemSummary = (body.items||[]).map(i => i.name + ' x' + i.qty).join(', ');
         const totalStr = Number(body.total||0).toFixed(3) + ' BD';
         ctx.waitUntil(bumpDataVersion().catch(() => {}));
-        ctx.waitUntil(notifyStaff(
-          'New Order - ' + tableLabel,
-          'Items: ' + itemSummary + '\nTotal: ' + totalStr + (body.notes ? '\nNote: ' + body.notes : ''),
-          'high'
+        ctx.waitUntil(notifyAllDevices(kv,
+          'New Order — ' + tableLabel,
+          itemSummary + ' | ' + totalStr + (body.notes ? ' | ' + body.notes : '')
         ).catch(() => {}));
         return respond({ id:newOrder.id });
       }
@@ -370,10 +408,9 @@ export default {
         const nc = { id:maxId+1, table_number:body.tableNumber||'?', created_at:new Date().toISOString() };
         callouts.push(nc); await writeKV('callouts:all', callouts);
         ctx.waitUntil(bumpDataVersion().catch(() => {}));
-        ctx.waitUntil(notifyStaff(
+        ctx.waitUntil(notifyAllDevices(kv,
           'Table ' + (body.tableNumber||'?') + ' is calling!',
-          'A customer at table ' + (body.tableNumber||'?') + ' needs your help.',
-          'urgent'
+          'A customer needs assistance at table ' + (body.tableNumber||'?')
         ).catch(() => {}));
         return respond({ id:nc.id });
       }

@@ -2167,6 +2167,44 @@ function startPolling(){
   setInterval(checkMenuVersion,2000);
   setInterval(updateRevenue,15000);
   updateRevenue();
+  setupWebPush();
+}
+
+/* ── Web Push Registration ── */
+function urlB64ToUint8(b64) {
+  var pad = '='.repeat((4 - b64.length % 4) % 4);
+  var raw = atob((b64 + pad).replace(/-/g,'+').replace(/_/g,'/'));
+  return Uint8Array.from(raw, function(c){return c.charCodeAt(0);});
+}
+async function setupWebPush() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+  try {
+    var reg = await navigator.serviceWorker.register('/sw.js');
+    await navigator.serviceWorker.ready;
+    var perm = await Notification.requestPermission();
+    if (perm !== 'granted') return;
+    var existing = await reg.pushManager.getSubscription();
+    if (existing) {
+      // Re-register existing subscription to make sure server has it
+      await fetch('/api/push-subscribe', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(existing.toJSON()),
+      });
+      return;
+    }
+    var keyRes = await fetch('/api/vapid-public-key');
+    var keyData = await keyRes.json();
+    var sub = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: urlB64ToUint8(keyData.key),
+    });
+    await fetch('/api/push-subscribe', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify(sub.toJSON()),
+    });
+  } catch(e) { console.warn('Push setup failed:', e); }
 }
 
 /* ───── Reports ───── */
