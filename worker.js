@@ -367,6 +367,23 @@ export default {
         const idx = orders.findIndex(o => o.id === parseInt(editMatch[1]));
         if (idx !== -1) { orders[idx].items=JSON.stringify(body.items||[]); orders[idx].total=body.total||0; }
         await writeKV('orders:all', orders);
+        ctx.waitUntil(bumpDataVersion());
+        return respond({ ok:true });
+      }
+      const staffNoteMatch = path_raw.match(/^\/orders\/(\d+)\/staff-note$/);
+      if (method==='POST' && staffNoteMatch) {
+        const orders = await readKV('orders:all', []);
+        const idx = orders.findIndex(o => o.id === parseInt(staffNoteMatch[1]));
+        if (idx !== -1) orders[idx].staff_note = body.note || '';
+        await writeKV('orders:all', orders);
+        ctx.waitUntil(bumpDataVersion());
+        return respond({ ok:true });
+      }
+      // ── Site background image ─────────────────────────────────
+      if (method==='GET' && path_raw==='/site-bg')
+        return respond(await readKV('site-bg:data', { url: '' }));
+      if (method==='POST' && path_raw==='/site-bg') {
+        await writeKV('site-bg:data', { url: body.url || '' });
         return respond({ ok:true });
       }
       const deleteMatch = path_raw.match(/^\/orders\/(\d+)$/);

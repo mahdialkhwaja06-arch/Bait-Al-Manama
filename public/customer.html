@@ -52,8 +52,16 @@ video.item-thumb{width:80px;height:80px;border-radius:14px;object-fit:cover;flex
 footer{padding:50px 20px;text-align:center;}
 footer h2{color:#f3cf89;font-size:32px;margin-bottom:10px;}
 </style>
+<style>
+/* Arabic RTL */
+body.rtl{direction:rtl;text-align:right;}
+body.rtl .callout-btn{font-size:17px;}
+body.rtl .back-btn, body.rtl .back-btn-bottom{float:none;}
+#langToggle{position:fixed;top:14px;right:16px;z-index:9999;background:rgba(243,207,137,0.18);border:1.5px solid rgba(243,207,137,0.4);color:#f3cf89;padding:7px 16px;border-radius:20px;font-size:14px;font-weight:700;cursor:pointer;backdrop-filter:blur(8px);font-family:'Cairo',sans-serif;}
+</style>
 </head>
 <body>
+<button id="langToggle" onclick="toggleLang()">عربي</button>
 
 <div id="homePage" class="page active">
 <header>
@@ -228,7 +236,7 @@ function buildHomeGrid(){
     var isMaint=(vis==='maintenance');
     html+='<div class="section-card'+(isMaint?' maintenance':'')+(isMaint?'" onclick="showMaintenance(\''+BUILTIN_LABELS[sec]+'\')':'" onclick="openPage(\''+sec+'\')')+'">' +
       '<img src="'+BUILTIN_IMAGES[sec]+'" onerror="this.src=\'\'">' +
-      '<div class="section-card-content"><h2>'+BUILTIN_LABELS[sec]+'</h2></div>' +
+      '<div class="section-card-content"><h2>'+getSectionName(BUILTIN_LABELS[sec])+'</h2></div>' +
       (isMaint?'<div class="maintenance-overlay"><div class="maint-icon">&#128679;</div><div class="maint-text">Under Maintenance</div><div class="maint-sub">Coming back soon</div></div>':'')+
     '</div>';
   });
@@ -240,7 +248,7 @@ function buildHomeGrid(){
     var imgSrc=cs.cover_image||'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1200';
     html+='<div class="section-card'+(isMaint?' maintenance':'')+(isMaint?'" onclick="showMaintenance(\''+cs.name+'\')':'" onclick="openPage(\''+secKey+'\')')+'">' +
       '<img src="'+imgSrc+'" onerror="this.src=\'\'">' +
-      '<div class="section-card-content"><h2>'+cs.name+'</h2></div>' +
+      '<div class="section-card-content"><h2>'+getSectionName(cs.name)+'</h2></div>' +
       (isMaint?'<div class="maintenance-overlay"><div class="maint-icon">&#128679;</div><div class="maint-text">Under Maintenance</div><div class="maint-sub">Coming back soon</div></div>':'')+
     '</div>';
   });
@@ -284,11 +292,11 @@ function renderMenuList(container,sec){
     return '<div class="menu-list-item'+(disabled?' disabled-row':'')+'">' +
       thumbHtml+
       '<div class="menu-list-item-info">'+
-        '<h3>'+name+'</h3>'+
+        '<h3>'+getItemName(name)+'</h3>'+
         '<div class="price">'+price.toFixed(3)+' BD</div>'+
       '</div>'+
       '<div class="menu-list-item-right">'+
-        (disabled ? '<span class="out-of-stock-label">Out of Stock</span>' : '')+
+        (disabled ? '<span class="out-of-stock-label">'+(LANG==='ar'?'نفذ المخزون':'Out of Stock')+'</span>' : '')+
       '</div>'+
     '</div>';
   }).join('');
@@ -389,6 +397,98 @@ function sendCallout(){
   })
   .catch(function(){alert('Could not send callout. Please try again.');});
 }
+
+/* ───── Arabic Language Toggle ───── */
+var LANG = localStorage.getItem('bam_lang') || 'en';
+var AR = {
+  callStaff: 'نادِ موظفاً إلى طاولتك',
+  selectTable: 'اختر رقم طاولتك',
+  chooseTable: '-- اختر الطاولة --',
+  sendCallout: '🔔 إرسال النداء',
+  outOfStock: 'نفذ المخزون',
+  back: 'رجوع ←',
+  tagline: 'أصالة النكهة البحرينية',
+  toggleBtn: 'English',
+  notified: function(t){ return 'سيأتي الموظف إلى طاولتك رقم '+t+' قريباً 🔔'; },
+  pleaseSelect: 'الرجاء اختيار رقم طاولتك.',
+  sectionNames: {
+    'Starters':'مقبلات','Cold Starters':'مقبلات باردة','Hot Starters':'مقبلات ساخنة',
+    'Salads':'سلطات','Main Course':'الأطباق الرئيسية','Grills':'مشاوي',
+    'Breads':'خبز','Sweets':'حلويات','Hot Drinks':'مشروبات ساخنة','Cold Drinks':'مشروبات باردة',
+    'Juices':'عصائر','Extras':'إضافات','Sides':'مقبلات جانبية','Soups':'شوربات'
+  },
+  itemNames: {
+    'Hummus':'حمص','Spicy Hummus':'حمص حار','Cucumber & Yoghurt':'خيار بلبن',
+    'Beetroot Salad':'سلطة البنجر','French Fries':'بطاطس مقلية','Fried Potato':'بطاطس محمرة',
+    'Neck':'رقبة','Tomahawk':'توماهوك','Shoulder':'كتف','Half Chicken':'نص دجاجة',
+    'Big Neck':'رقبة كبيرة','Cheese Bread':'خبز بالجبن','Egg & Cheese Bread':'خبز بالبيض والجبن',
+    'Meat Kofta & Cheese Bread':'عرايس لحم','Chicken Kofta & Cheese Bread':'عرايس دجاج',
+    'Chocolate Bread':'خبز شوكولاتة','Khabeesa':'خبيصة','Bahraini Halwa':'حلوى بحرينية',
+    'Cream Caramel':'كريم كراميل','Mohalabeeya':'محلبية','Red Tea':'شاي أحمر',
+    'Safron Tea':'شاي زعفران','Chi Karak':'شاي كرك','Rose Tea':'شاي ورد','Lemon Tea':'شاي ليمون',
+    'Safron Milk':'حليب زعفران','Milk & Tea':'حليب وشاي','Milk':'حليب','Hot COCO':'كاكاو ساخن',
+    'Khabeesa Milk':'حليب خبيصة','Red Teapot':'دلة شاي أحمر','Karak Pot':'دلة كرك',
+    'Rose Teapot':'دلة ورد','Coffee Pot':'دلة قهوة','Black Lemon':'ليمون أسود',
+    'Iced Safron':'زعفران مثلج','Rose Milk':'حليب ورد','Kinza':'كنزة','Iced Kinza':'كنزة مثلجة',
+    'Laban':'لبن','Water':'ماء','Cola':'كولا','Sprite':'سبرايت','Pepsi':'بيبسي',
+    'Seven Up':'سفن أب','Mirinda':'ميرندا','Fanta':'فانتا'
+  }
+};
+
+function getItemName(name){
+  if(LANG==='ar' && AR.itemNames[name]) return AR.itemNames[name];
+  return name;
+}
+function getSectionName(name){
+  if(LANG==='ar' && AR.sectionNames[name]) return AR.sectionNames[name];
+  return name;
+}
+
+function applyLang(){
+  var isAr = LANG==='ar';
+  document.body.classList.toggle('rtl', isAr);
+  document.documentElement.setAttribute('lang', isAr?'ar':'en');
+  var btn = document.getElementById('langToggle');
+  if(btn) btn.innerText = isAr ? AR.toggleBtn : 'عربي';
+  var calloutBtn = document.querySelector('.callout-btn');
+  if(calloutBtn) calloutBtn.innerHTML = (isAr?'🔔 '+AR.callStaff:'🔔 Call Staff to My Table');
+  var calloutH3 = document.querySelector('.callout-dropdown h3');
+  if(calloutH3) calloutH3.innerText = isAr?AR.selectTable:'Select your table number';
+  var chooseOpt = document.querySelector('#calloutTable option[value=""]');
+  if(chooseOpt) chooseOpt.innerText = isAr?AR.chooseTable:'-- Choose Table --';
+  var sendBtn = document.querySelector('.callout-send-btn');
+  if(sendBtn) sendBtn.innerHTML = isAr?AR.sendCallout:'🔔 Send Callout';
+  var tagline = document.querySelector('footer p');
+  if(tagline) tagline.innerText = isAr?AR.tagline:'Old Bahraini Taste';
+  // Rebuild the page content with new language
+  buildHomeGrid();
+  renderMenuPages();
+}
+
+function toggleLang(){
+  LANG = LANG==='ar'?'en':'ar';
+  localStorage.setItem('bam_lang','ar'===LANG?'ar':'en');
+  applyLang();
+}
+
+// Apply on load
+if(LANG==='ar'){
+  document.addEventListener('DOMContentLoaded', function(){ applyLang(); });
+}
+
+
+// Load site background
+fetch('/api/site-bg?t='+Date.now()).then(function(r){return r.json();}).then(function(d){
+  if(d&&d.url){
+    document.body.style.backgroundImage='url('+d.url+')';
+    document.body.style.backgroundSize='cover';
+    document.body.style.backgroundPosition='center top';
+    document.body.style.backgroundAttachment='fixed';
+    // Override the existing body::before gradient overlay
+    var style=document.createElement('style');
+    style.textContent='body::before{background:linear-gradient(rgba(0,0,0,0.72),rgba(0,0,0,0.72)),none !important;background:rgba(0,0,0,0.72) !important;}';
+    document.head.appendChild(style);
+  }
+}).catch(function(){});
+
 </script>
-</body>
-</html>

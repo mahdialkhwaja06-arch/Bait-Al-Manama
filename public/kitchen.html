@@ -91,6 +91,7 @@ function renderOrders() {
         }).join('') +
       '</div>' +
       (notes ? '<div class="notes-box">📝 ' + notes + '</div>' : '') +
+      (order.staff_note ? '<div class="notes-box" style="background:#2a2010;border-color:#f3cf89;color:#f3cf89;">🗒 Staff: ' + order.staff_note + '</div>' : '') +
       (isDone
         ? '<div class="done-label">✅ Ready — Waiting for pickup</div>'
         : '<button class="ready-btn" onclick="markReady(' + order.id + ')">✅ Mark as Ready</button>'

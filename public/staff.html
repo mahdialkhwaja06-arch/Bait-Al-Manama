@@ -226,6 +226,19 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 .stock-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(243,207,137,0.15);border:1px solid rgba(243,207,137,0.3);color:#f3cf89;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:700;cursor:pointer;margin-top:4px;}
 .stock-badge.low{background:rgba(255,138,101,0.15);border-color:rgba(255,138,101,0.4);color:#ff8a65;}
 .stock-badge.out{background:rgba(229,57,53,0.15);border-color:rgba(229,57,53,0.4);color:#ef5350;}
+
+/* ── Urgent order (>20 min) ── */
+.order-card.card-urgent{border:2px solid #ff5252 !important;animation:urgentPulse 2s infinite;}
+@keyframes urgentPulse{0%,100%{box-shadow:0 0 0 3px rgba(255,82,82,0.4);}50%{box-shadow:0 0 0 8px rgba(255,82,82,0);}}
+/* ── Smooth page transitions ── */
+.page.active{animation:pageIn 0.28s cubic-bezier(0.4,0,0.2,1) both;}
+@keyframes pageIn{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+/* ── Staff note on order card ── */
+.staff-note-box{background:rgba(243,207,137,0.12);border:1px solid rgba(243,207,137,0.25);border-radius:10px;padding:6px 10px;margin-top:8px;display:flex;align-items:center;gap:6px;cursor:pointer;}
+.staff-note-box span{color:#f3cf89;font-size:13px;flex:1;}
+.staff-note-edit{width:100%;background:rgba(243,207,137,0.1);border:1px solid rgba(243,207,137,0.4);border-radius:10px;padding:8px;color:white;font-size:13px;font-family:inherit;resize:none;margin-top:6px;outline:none;}
+/* ── Low stock banner ── */
+#lowStockBanner{background:rgba(255,138,101,0.18);border:1px solid rgba(255,138,101,0.45);border-radius:14px;padding:10px 16px;margin:0 20px 14px;font-size:13px;color:#ff8a65;font-weight:700;display:none;line-height:1.5;}
 </style>
 <script>if(!sessionStorage.getItem('bam_current_employee')){window.location.replace('/');}</script>
 </head>
@@ -238,6 +251,9 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 <p>Staff Panel</p>
 </header>
 
+<div id="lowStockBanner"></div>
+<div style="padding:0 20px 4px 20px;"><span style="color:#f3cf89;font-size:13px;font-weight:700;letter-spacing:0.5px;">TABLE STATUS</span></div>
+<div id="tableStatusGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 20px 16px;"></div>
 <div class="home-grid" id="homeGrid"><!-- Built dynamically --></div>
 
 <div id="revenueBar" style="margin:0 20px 10px;background:rgba(243,207,137,0.12);border:1px solid rgba(243,207,137,0.3);border-radius:20px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
@@ -715,7 +731,7 @@ async function addEmployee(){
 
 /* ───── Load all data ───── */
 function loadAllData(){
-  fetch('/api/item-stock').then(function(r){return r.json();}).then(function(d){itemStockData=d||{};renderManageItems();}).catch(function(){});
+  fetch('/api/item-stock').then(function(r){return r.json();}).then(function(d){itemStockData=d||{};renderManageItems();renderLowStockBanner();}).catch(function(){});
   Promise.all([
     fetch('/api/custom-items').then(function(r){return r.json();}),
     fetch('/api/menu-overrides').then(function(r){return r.json();}),
@@ -874,6 +890,10 @@ function buildHomeGrid(){
     html+='<div class="section-card" onclick="openManageEmployees()">'+
       '<img src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800" onerror="this.src=\'\'">'+
       '<div class="section-card-content"><h2>&#128101; Manage Staff</h2></div>'+
+    '</div>';
+    html+='<div class="section-card" onclick="openBgPicker()">'+
+      '<img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800" onerror="this.src=\'\'">'+
+      '<div class="section-card-content"><h2><span id="bgPickerBtn">&#127748; Change Background</span></h2></div>'+
     '</div>';
   }
 
@@ -1883,7 +1903,21 @@ function renderActiveOrders(){
         '<button class="btn-delete" onclick="deleteOrder('+order.id+')">&#128465; Delete</button>'+
       '</div>'+
       '<div class="status-unpaid" style="margin-top:10px;">Status: Unpaid</div>'+
-      '<div class="payment-buttons">'+
+      '<div class="staff-note-area" style="margin-top:8px;">'+
+      '<div class="staff-note-box" onclick="toggleStaffNote('+order.id+')">'+
+        '<span>'+(order.staff_note&&order.staff_note!==''?'&#128221; '+order.staff_note:'&#43; Add Staff Note')+'</span>'+
+      '</div>'+
+      '<div id="snEdit_'+order.id+'" style="display:none;margin-top:6px;">'+
+        '<textarea class="staff-note-edit" id="snText_'+order.id+'" rows="2" placeholder="Internal note — staff only...">'+
+          (order.staff_note||'')+
+        '</textarea>'+
+        '<div style="display:flex;gap:6px;margin-top:4px;">'+
+          '<button onclick="saveStaffNote('+order.id+')" style="flex:1;background:#f3cf89;color:#1c120b;border:none;padding:7px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;">Save</button>'+
+          '<button onclick="document.getElementById(\'snEdit_'+order.id+'\').style.display=\'none\'" style="background:#e8dcc8;color:#5a4a3a;border:none;padding:7px 12px;border-radius:10px;font-size:13px;cursor:pointer;">&#10005;</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>'+
+    '<div class="payment-buttons">'+
         '<button class="cash" style="width:100%;font-size:15px;padding:12px;border-radius:14px;" onclick="openPayModal('+order.id+','+Number(order.total)+')">&#128179; Pay</button>'+
       '</div>'+
     '</div>';
@@ -1919,6 +1953,12 @@ function updateTimers(){
     if(seconds<900)el.style.color='#8dffb1';
     else if(seconds<1800)el.style.color='#f3cf89';
     else el.style.color='#ff8a65';
+    /* mark whole card urgent after 20 min */
+    var card=el.closest('.order-card');
+    if(card){
+      if(seconds>=1200) card.classList.add('card-urgent');
+      else card.classList.remove('card-urgent');
+    }
   });
 }
 setInterval(updateTimers,1000);
@@ -2149,6 +2189,7 @@ function checkDataVersion(){
       fetch('/api/item-stock?t='+Date.now()).then(function(r){return r.json();}).then(function(s){
         itemStockData=s||{};
         renderManageItems();
+        renderLowStockBanner();
       }).catch(function(){});
     }
     lastDataVersion=v;
@@ -2188,6 +2229,87 @@ function updateRevenue(){
   }).catch(function(){});
 }
 
+
+
+/* ───── Staff Notes ───── */
+function toggleStaffNote(id){
+  var ed=document.getElementById('snEdit_'+id);
+  if(!ed) return;
+  var show=ed.style.display==='none'||ed.style.display==='';
+  ed.style.display=show?'block':'none';
+  if(show){var ta=document.getElementById('snText_'+id); if(ta){ta.focus();ta.setSelectionRange(ta.value.length,ta.value.length);}}
+}
+function saveStaffNote(id){
+  var ta=document.getElementById('snText_'+id);
+  if(!ta) return;
+  var note=ta.value.trim();
+  fetch('/api/orders/'+id+'/staff-note',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({note:note})})
+  .then(function(){document.getElementById('snEdit_'+id).style.display='none';loadActiveOrders();})
+  .catch(function(){});
+}
+
+/* ───── Low Stock Banner ───── */
+function renderLowStockBanner(){
+  var banner=document.getElementById('lowStockBanner');
+  if(!banner) return;
+  var low=[], out=[];
+  for(var name in itemStockData){
+    var qty=itemStockData[name];
+    if(qty===null||qty===undefined) continue;
+    if(qty<=0) out.push(name);
+    else if(qty<=3) low.push(name+' ('+qty+' left)');
+  }
+  var all=[];
+  if(out.length) all.push('&#128683; Out: '+out.join(', '));
+  if(low.length) all.push('&#9888;&#65039; Low: '+low.join(' · '));
+  if(all.length===0){banner.style.display='none';}
+  else{banner.style.display='block';banner.innerHTML=all.join('<br>');}
+}
+
+/* ───── Site Background Image ───── */
+function applyBackground(url){
+  if(!url) return;
+  document.body.style.backgroundImage='url('+url+')';
+  document.body.style.backgroundSize='cover';
+  document.body.style.backgroundPosition='center top';
+  document.body.style.backgroundAttachment='fixed';
+}
+function openBgPicker(){
+  var input=document.createElement('input');
+  input.type='file'; input.accept='image/*';
+  input.onchange=function(e){
+    var file=e.target.files[0];
+    if(!file) return;
+    var btn=document.getElementById('bgPickerBtn');
+    if(btn){btn.innerText='Uploading...';btn.disabled=true;}
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var canvas=document.createElement('canvas');
+        var maxW=1920,maxH=1080;
+        var ratio=Math.min(maxW/img.width,maxH/img.height,1);
+        canvas.width=Math.round(img.width*ratio);
+        canvas.height=Math.round(img.height*ratio);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        var dataUrl=canvas.toDataURL('image/jpeg',0.85);
+        fetch('/api/site-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:dataUrl})})
+        .then(function(){applyBackground(dataUrl);if(btn){btn.innerText='&#127748; Change Background';btn.disabled=false;}})
+        .catch(function(){if(btn){btn.innerText='&#127748; Change Background';btn.disabled=false;}});
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
+}
+function removeBg(){
+  fetch('/api/site-bg',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({url:''})})
+  .then(function(){document.body.style.backgroundImage='';})
+  .catch(function(){});
+}
+// Load background on startup
+fetch('/api/site-bg?t='+Date.now()).then(function(r){return r.json();}).then(function(d){if(d.url)applyBackground(d.url);}).catch(function(){});
 
 /* ───── speak helper ───── */
 function speak(text){
