@@ -4,6 +4,26 @@
  * Handles all /api/* routes via KV storage
  */
 
+// ── ntfy.sh push notifications ────────────────────────────────
+// Change this to any topic name you want — subscribe to it in the ntfy app
+const NTFY_TOPIC = 'bait-almanama-staff';
+
+async function notifyStaff(title, message, priority = 'high') {
+  try {
+    await fetch('https://ntfy.sh/' + NTFY_TOPIC, {
+      method: 'POST',
+      headers: {
+        'Title': title,
+        'Priority': priority,
+        'Tags': 'bell',
+        'Content-Type': 'text/plain',
+      },
+      body: message,
+    });
+  } catch(e) {}
+}
+// ─────────────────────────────────────────────────────────────
+
 function base64ToBuffer(base64) {
   const b64 = base64.includes(',') ? base64.split(',')[1] : base64;
   const binary = atob(b64);
@@ -71,12 +91,17 @@ export default {
       try { await kv.put(key, JSON.stringify(data)); } catch(e) {}
     };
     const bumpVersion = () => writeKV('menu-version:v', { t: Date.now() });
+    const bumpDataVersion = () => writeKV('data-version:v', { t: Date.now() });
 
     try {
 
       // ── Menu version ────────────────────────────────────────
       if (method==='GET' && path_raw==='/menu-version')
         return respond(await readKV('menu-version:v', { t:0 }));
+
+      // ── Data version (orders + stock + callouts) ─────────────
+      if (method==='GET' && path_raw==='/data-version')
+        return respond(await readKV('data-version:v', { t:0 }));
 
       // ── Section status ──────────────────────────────────────
       if (method==='GET' && path_raw==='/section-status')
@@ -185,6 +210,46 @@ export default {
         const newOrder = { id:maxId+1, customer_name:body.customerName||'', phone_number:body.phoneNumber||'', table_number:body.tableNumber||'', items:JSON.stringify(body.items||[]), total:body.total||0, notes:body.notes||'', status:'active', payment_method:null, completed_at:null, paid_at:null, created_at:new Date().toISOString() };
         orders.push(newOrder);
         await writeKV('orders:all', orders);
+        // ── Deduct plate stock on placement ──────────────────
+        try {
+          const placedItems = body.items || [];
+          const stock = await readKV('item-stock:all', {});
+          const disabled = await readKV('disabled-items:data', {});
+          let stockChanged = false, disabledChanged = false;
+          for (const oi of placedItems) {
+            if (stock[oi.name] !== undefined && stock[oi.name] !== null) {
+              stock[oi.name] = Math.max(0, stock[oi.name] - oi.qty); stockChanged = true;
+              if (stock[oi.name] <= 0) { disabled[oi.name]=true; disabledChanged=true; }
+            }
+          }
+          if (stockChanged) await writeKV('item-stock:all', stock);
+          if (disabledChanged) { await writeKV('disabled-items:data', disabled); await bumpVersion(); }
+        } catch(e) {}
+        // ── Deduct inventory on placement ─────────────────────
+        try {
+          const placedItems2 = body.items || [];
+          const assignments = await readKV('item-inv:data', {});
+          const invItems = await readKV('inventory:all', []);
+          const disabled2 = await readKV('disabled-items:data', {});
+          let invChanged = false, disabledChanged2 = false;
+          for (const oi of placedItems2) {
+            const assign = assignments[oi.name]; if (!assign) continue;
+            const iIdx = invItems.findIndex(i => i.id === assign.inventoryId); if (iIdx === -1) continue;
+            const deductAmt = convertUnits(assign.usagePerServing * oi.qty, assign.servingUnit||invItems[iIdx].unit, invItems[iIdx].unit);
+            invItems[iIdx].quantity = Math.max(0, invItems[iIdx].quantity - deductAmt); invChanged = true;
+            if (invItems[iIdx].quantity <= 0) { for (const mn in assignments) { if (assignments[mn].inventoryId === assign.inventoryId) { disabled2[mn]=true; disabled2['__inv_'+mn]=true; disabledChanged2=true; } } }
+          }
+          if (invChanged) await writeKV('inventory:all', invItems);
+          if (disabledChanged2) { await writeKV('disabled-items:data', disabled2); await bumpVersion(); }
+        } catch(e) {}
+        // ntfy notification
+        const tableLabel = body.tableNumber ? 'Table ' + body.tableNumber : 'No table';
+        const itemSummary = (body.items||[]).map(i => i.name + ' x' + i.qty).join(', ');
+        const totalStr = Number(body.total||0).toFixed(3) + ' BD';
+        ctx.waitUntil(Promise.all([
+          bumpDataVersion(),
+          notifyStaff('\uD83E\uDDFE New Order \u2013 ' + tableLabel, itemSummary + '\nTotal: ' + totalStr + (body.notes ? '\nNote: ' + body.notes : ''), 'high')
+        ]));
         return respond({ id:newOrder.id });
       }
       const doneMatch = path_raw.match(/^\/orders\/(\d+)\/done$/);
@@ -193,6 +258,7 @@ export default {
         const idx = orders.findIndex(o => o.id === parseInt(doneMatch[1]));
         if (idx !== -1) orders[idx].completed_at = new Date().toISOString();
         await writeKV('orders:all', orders);
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
       const paidMatch = path_raw.match(/^\/orders\/(\d+)\/paid$/);
@@ -201,38 +267,7 @@ export default {
         const idx = orders.findIndex(o => o.id === parseInt(paidMatch[1]));
         if (idx !== -1) { orders[idx].status='paid'; orders[idx].payment_method=body.paymentMethod||'Cash'; orders[idx].paid_at=new Date().toISOString(); }
         await writeKV('orders:all', orders);
-        if (idx !== -1) {
-          try {
-            const orderItems = JSON.parse(orders[idx].items || '[]');
-            const assignments = await readKV('item-inv:data', {});
-            const invItems = await readKV('inventory:all', []);
-            const disabled = await readKV('disabled-items:data', {});
-            let invChanged = false, disabledChanged = false;
-            for (const oi of orderItems) {
-              const assign = assignments[oi.name]; if (!assign) continue;
-              const iIdx = invItems.findIndex(i => i.id === assign.inventoryId); if (iIdx === -1) continue;
-              const deductAmt = convertUnits(assign.usagePerServing * oi.qty, assign.servingUnit||invItems[iIdx].unit, invItems[iIdx].unit);
-              invItems[iIdx].quantity = Math.max(0, invItems[iIdx].quantity - deductAmt); invChanged = true;
-              if (invItems[iIdx].quantity <= 0) { for (const mn in assignments) { if (assignments[mn].inventoryId === assign.inventoryId) { disabled[mn]=true; disabled['__inv_'+mn]=true; disabledChanged=true; } } }
-            }
-            if (invChanged) await writeKV('inventory:all', invItems);
-            if (disabledChanged) { await writeKV('disabled-items:data', disabled); await bumpVersion(); }
-          } catch(e) {}
-          try {
-            const orderItems2 = JSON.parse(orders[idx].items || '[]');
-            const stock = await readKV('item-stock:all', {});
-            const disabled2 = await readKV('disabled-items:data', {});
-            let stockChanged = false, disabledChanged2 = false;
-            for (const oi of orderItems2) {
-              if (stock[oi.name] !== undefined && stock[oi.name] !== null) {
-                stock[oi.name] = Math.max(0, stock[oi.name] - oi.qty); stockChanged = true;
-                if (stock[oi.name] <= 0) { disabled2[oi.name]=true; disabledChanged2=true; }
-              }
-            }
-            if (stockChanged) await writeKV('item-stock:all', stock);
-            if (disabledChanged2) { await writeKV('disabled-items:data', disabled2); await bumpVersion(); }
-          } catch(e) {}
-        }
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
       const repayMatch = path_raw.match(/^\/orders\/(\d+)\/repay$/);
@@ -254,8 +289,51 @@ export default {
       const deleteMatch = path_raw.match(/^\/orders\/(\d+)$/);
       if (method==='DELETE' && deleteMatch) {
         let orders = await readKV('orders:all', []);
+        const orderToDelete = orders.find(o => o.id === parseInt(deleteMatch[1]));
         orders = orders.filter(o => o.id !== parseInt(deleteMatch[1]));
         await writeKV('orders:all', orders);
+        // ── Restore plate stock if order was active (not paid) ──
+        if (orderToDelete && orderToDelete.status === 'active') {
+          try {
+            const restoredItems = JSON.parse(orderToDelete.items || '[]');
+            const stock = await readKV('item-stock:all', {});
+            const disabled = await readKV('disabled-items:data', {});
+            let stockChanged = false, disabledChanged = false;
+            for (const oi of restoredItems) {
+              if (stock[oi.name] !== undefined && stock[oi.name] !== null) {
+                const wasZero = stock[oi.name] <= 0;
+                stock[oi.name] += oi.qty; stockChanged = true;
+                if (wasZero && stock[oi.name] > 0) { delete disabled[oi.name]; disabledChanged = true; }
+              }
+            }
+            if (stockChanged) await writeKV('item-stock:all', stock);
+            if (disabledChanged) { await writeKV('disabled-items:data', disabled); await bumpVersion(); }
+          } catch(e) {}
+          // ── Restore inventory if order was active ─────────────
+          try {
+            const restoredItems2 = JSON.parse(orderToDelete.items || '[]');
+            const assignments = await readKV('item-inv:data', {});
+            const invItems = await readKV('inventory:all', []);
+            const disabled2 = await readKV('disabled-items:data', {});
+            let invChanged = false, disabledChanged2 = false;
+            for (const oi of restoredItems2) {
+              const assign = assignments[oi.name]; if (!assign) continue;
+              const iIdx = invItems.findIndex(i => i.id === assign.inventoryId); if (iIdx === -1) continue;
+              const restoreAmt = convertUnits(assign.usagePerServing * oi.qty, assign.servingUnit||invItems[iIdx].unit, invItems[iIdx].unit);
+              invItems[iIdx].quantity += restoreAmt; invChanged = true;
+              if (invItems[iIdx].quantity > 0) {
+                for (const mn in assignments) {
+                  if (assignments[mn].inventoryId === assign.inventoryId && disabled2['__inv_'+mn]) {
+                    delete disabled2[mn]; delete disabled2['__inv_'+mn]; disabledChanged2 = true;
+                  }
+                }
+              }
+            }
+            if (invChanged) await writeKV('inventory:all', invItems);
+            if (disabledChanged2) { await writeKV('disabled-items:data', disabled2); await bumpVersion(); }
+          } catch(e) {}
+        }
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
       if (method==='POST' && path_raw==='/orders/clear-paid') {
@@ -276,6 +354,14 @@ export default {
         const maxId = callouts.reduce((m,c) => Math.max(m,c.id), 0);
         const nc = { id:maxId+1, table_number:body.tableNumber||'?', created_at:new Date().toISOString() };
         callouts.push(nc); await writeKV('callouts:all', callouts);
+        ctx.waitUntil(Promise.all([
+          bumpDataVersion(),
+          notifyStaff(
+            '\uD83D\uDD14 Table ' + (body.tableNumber||'?') + ' is calling!',
+            'A customer at table ' + (body.tableNumber||'?') + ' needs assistance.',
+            'urgent'
+          )
+        ]));
         return respond({ id:nc.id });
       }
       const calloutDeleteMatch = path_raw.match(/^\/callouts\/(\d+)$/);
@@ -283,6 +369,7 @@ export default {
         let callouts = await readKV('callouts:all', []);
         callouts = callouts.filter(c => c.id !== parseInt(calloutDeleteMatch[1]));
         await writeKV('callouts:all', callouts);
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
 
@@ -401,6 +488,7 @@ export default {
         Object.assign(stock, body);
         for (const k in stock) { if (stock[k] === null) delete stock[k]; }
         await writeKV('item-stock:all', stock);
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
 

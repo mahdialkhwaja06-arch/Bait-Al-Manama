@@ -2080,6 +2080,7 @@ function dismissCallout(id){
 
 /* ───── Polling ───── */
 var lastMenuVersion=0;
+var lastDataVersion=0;
 function checkMenuVersion(){
   fetch('/api/menu-version?t='+Date.now())
   .then(function(r){return r.json();})
@@ -2110,7 +2111,22 @@ function checkMenuVersion(){
     lastMenuVersion=v;
   }).catch(function(){});
 }
-var wakeLock=null;
+function checkDataVersion(){
+  fetch('/api/data-version?t='+Date.now())
+  .then(function(r){return r.json();})
+  .then(function(d){
+    var v=d.t||0;
+    if(lastDataVersion && v!==lastDataVersion){
+      loadActiveOrders();
+      loadCallouts();
+      fetch('/api/item-stock?t='+Date.now()).then(function(r){return r.json();}).then(function(s){
+        itemStockData=s||{};
+        renderManageItems();
+      }).catch(function(){});
+    }
+    lastDataVersion=v;
+  }).catch(function(){});
+}
 async function requestWakeLock(){
   if('wakeLock' in navigator){
     try{wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',function(){wakeLock=null;});}catch(e){}
@@ -2147,7 +2163,7 @@ function updateRevenue(){
 
 function startPolling(){
   requestWakeLock();
-  setInterval(function(){loadActiveOrders();loadCallouts();},5000);
+  setInterval(checkDataVersion,2000);
   setInterval(checkMenuVersion,2000);
   setInterval(updateRevenue,15000);
   updateRevenue();
