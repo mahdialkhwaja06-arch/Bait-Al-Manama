@@ -29,8 +29,11 @@ body{background:#1c120b;color:white;min-height:100vh;overflow-x:hidden;padding-b
 header{padding:10px 16px 12px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;text-align:center;}
 header .hdr-logo{width:160px;max-width:55vw;filter:brightness(0) invert(1) sepia(0.35) saturate(3) hue-rotate(3deg) brightness(0.97);opacity:0.92;margin-bottom:4px;}
 header p{color:rgba(245,226,186,0.75);font-size:13px;margin-top:2px;}
-.home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:20px;max-width:1200px;margin:auto;}
-.section-card{background:#231610;border-radius:24px;overflow:hidden;cursor:pointer;transition:transform 0.25s,box-shadow 0.25s;border:1px solid rgba(243,207,137,0.12);box-shadow:0 4px 18px rgba(0,0,0,0.45);}
+.home-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:10px 14px 14px;}
+.section-card{background:#231610;border-radius:16px;cursor:pointer;border:1px solid rgba(243,207,137,0.16);box-shadow:0 3px 12px rgba(0,0,0,0.4);transition:transform 0.18s,box-shadow 0.18s;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:16px 10px 14px;text-align:center;min-height:80px;}
+.section-card:active{transform:scale(0.93);box-shadow:0 1px 6px rgba(0,0,0,0.3);}
+.card-icon{font-size:26px;line-height:1;}
+.section-card h2{font-size:12px;font-weight:700;color:#f3cf89;line-height:1.3;margin:0;}
 .section-card:hover{transform:translateY(-4px);}
 .section-card img{width:100%;height:160px;object-fit:cover;}
 .section-card-content{padding:14px 16px;}
@@ -275,6 +278,9 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 <div style="padding:0 20px 4px 20px;"><span style="color:#f3cf89;font-size:13px;font-weight:700;letter-spacing:0.5px;">TABLE STATUS</span></div>
 <div id="tableStatusGrid" style="display:grid;grid-template-columns:repeat(5,1fr);gap:8px;padding:0 20px 16px;"></div>
 <div class="home-grid" id="homeGrid"><!-- Built dynamically --></div>
+<div id="bgFooterArea" style="display:none;text-align:center;padding:2px 20px 10px;">
+  <button onclick="openBgPicker()" id="bgPickerBtn" style="background:transparent;border:1px solid rgba(243,207,137,0.2);color:#8a7a5a;padding:7px 22px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'Cairo',sans-serif;">🌿 Change Page Background</button>
+</div>
 
 <div id="revenueBar" style="margin:0 20px 10px;background:rgba(243,207,137,0.12);border:1px solid rgba(243,207,137,0.3);border-radius:20px;padding:18px 24px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;">
   <div>
@@ -844,98 +850,33 @@ function rebuildMenu(){
 /* ───── Build home grid dynamically ───── */
 function buildHomeGrid(){
   var grid=document.getElementById('homeGrid');
-  var html='';
-
-  // Menu section cards (built-in)
-  var builtinOrder=['starters','main','breads','sweets','hot','cold'];
-  builtinOrder.forEach(function(sec){
-    var status=getSectionStatus(sec,false);
-    var isOn=status!=='maintenance';
-    var badgeClass=isOn?'status-active':'status-maintenance';
-    var badgeText=isOn?'&#128994; Active':'&#128308; Maintenance';
-    html+='<div class="section-card" onclick="openPage(\''+sec+'\')">'+
-      '<img src="'+BUILTIN_SECTION_IMAGES[sec]+'" onerror="this.src=\'\'">'+
-      '<div class="section-card-content">'+
-        '<h2>'+BUILTIN_SECTION_LABELS[sec]+'</h2>'+
-        '<div class="section-card-footer" onclick="event.stopPropagation()">'+
-          '<span class="section-status-badge '+badgeClass+'">'+badgeText+'</span>'+
-          '<label class="toggle" title="Toggle visibility on customer site">'+
-            '<input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\''+sec+'\',this.checked)">'+
-            '<span class="toggle-slider"></span>'+
-          '</label>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  });
-
-  // Custom section cards
-  customSectionsData.forEach(function(cs){
-    var secKey='csec_'+cs.id;
-    var status=getSectionStatus(secKey,true);
-    var isOn=status==='active';
-    var isNeverPublished=status==='unpublished';
-    var badgeClass=isNeverPublished?'status-unpublished':(isOn?'status-active':'status-maintenance');
-    var badgeText=isNeverPublished?'&#9898; Not Published':(isOn?'&#128994; Published':'&#128308; Maintenance');
-    var imgSrc=cs.cover_image||'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800';
-    html+='<div class="section-card" onclick="openPage(\''+secKey+'\')">'+
-      '<img src="'+imgSrc+'" onerror="this.src=\'\'">'+
-      '<div class="section-card-content">'+
-        '<h2>'+cs.name+'</h2>'+
-        '<div class="section-card-footer" onclick="event.stopPropagation()">'+
-          '<span class="section-status-badge '+badgeClass+'">'+badgeText+'</span>'+
-          '<div style="display:flex;align-items:center;gap:8px;">'+
-            '<label class="toggle" title="Publish/Unpublish on customer site">'+
-              '<input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\''+secKey+'\',this.checked)">'+
-              '<span class="toggle-slider"></span>'+
-            '</label>'+
-            '<button class="custom-sec-del" onclick="event.stopPropagation();deleteCustomSection('+cs.id+')" title="Delete section">&#128465;</button>'+
-          '</div>'+
-        '</div>'+
-      '</div>'+
-    '</div>';
-  });
-
-  // Add new section card
-  html+='<div class="section-card add-section-card" onclick="openCreateSectionModal()">'+
-    '<div class="add-section-inner">'+
-      '<div class="plus">&#43;</div>'+
-      '<p>Create New Section</p>'+
-    '</div>'+
-  '</div>';
-
-  // Management cards
-  var mgmtCards=[
-    {id:'activeOrdersPage',img:'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800',label:'Active Orders <span id="orderCountBadge" class="new-order-badge" style="display:none;">0</span>'},
-    {id:'paidTicketsPage',img:'https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=800',label:'Paid Tickets'},
-    {id:'calloutsPage',img:'https://images.unsplash.com/photo-1521737604893-d14cc237f11d?q=80&w=800',label:'Callouts <span id="calloutCountBadge" class="new-order-badge" style="display:none;background:#ff6b35;">0</span>'},
-    {id:'manageItemsPage',img:'https://images.unsplash.com/photo-1498837167922-ddd27525d352?q=80&w=800',label:'Manage Items'},
-    {id:'inventoryPage',img:'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?q=80&w=800',label:'&#128230; Inventory'},
-    {id:'manualPage',img:'https://images.unsplash.com/photo-1532012197267-da84d127e765?q=80&w=800',label:'&#128218; Employee Manual'},
-    {id:'__kitchen__',img:'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?q=80&w=800',label:'&#128256; Kitchen Display'},
-    {id:'__qrcodes__',img:'https://images.unsplash.com/photo-1559526323-cb2f2fe2591b?q=80&w=800',label:'&#128379; Table QR Codes'}
+  if(!grid) return;
+  var cards=[
+    {id:'activeOrdersPage',  icon:'🍽', label:'Active Orders <span id="orderCountBadge" class="new-order-badge" style="display:none;">0</span>'},
+    {id:'paidTicketsPage',   icon:'🎫', label:'Paid Tickets'},
+    {id:'calloutsPage',      icon:'🔔', label:'Callouts <span id="calloutCountBadge" class="new-order-badge" style="display:none;background:#ff6b35;">0</span>'},
+    {id:'menuSectionsPage',  icon:'📖', label:'Menu'},
+    {id:'manageItemsPage',   icon:'✏️', label:'Manage Items'},
+    {id:'inventoryPage',     icon:'📦', label:'Inventory'},
+    {id:'manualPage',        icon:'📚', label:'Manual'},
+    {id:'__kitchen__',       icon:'🖥', label:'Kitchen Display'},
+    {id:'__qrcodes__',       icon:'📲', label:'Table QR Codes'}
   ];
-  mgmtCards.forEach(function(c){
-    html+='<div class="section-card" onclick="openPage(\''+c.id+'\')">'+
-      '<img src="'+c.img+'" onerror="this.src=\'\'">'+
-      '<div class="section-card-content"><h2>'+c.label+'</h2></div>'+
+  if(isAdmin){
+    cards.push({id:'__staff__', icon:'👥', label:'Manage Staff'});
+    cards.push({id:'__wa__',    icon:'💬', label:'WhatsApp Report'});
+  }
+  var html='';
+  cards.forEach(function(card){
+    html+='<div class="section-card" onclick="openPage(\'' + card.id + '\')">'+
+      '<div class="card-icon">'+card.icon+'</div>'+
+      '<h2>'+card.label+'</h2>'+
     '</div>';
   });
-  if(isAdmin){
-    html+='<div class="section-card" onclick="openManageEmployees()">'+
-      '<img src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=800" onerror="this.src=\'\'">'+
-      '<div class="section-card-content"><h2>&#128101; Manage Staff</h2></div>'+
-    '</div>';
-    html+='<div class="section-card" onclick="openBgPicker()">'+
-      '<img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800" onerror="this.src=\'\'">'+
-      '<div class="section-card-content"><h2><span id="bgPickerBtn">&#127748; Change Background</span></h2></div>'+
-    '</div>';
-    html+='<div class="section-card" onclick="openWaSettings()">'+
-      '<img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=800" onerror="this.src=\'\'">'+
-      '<div class="section-card-content"><h2>&#128242; WhatsApp Report</h2></div>'+
-    '</div>';
-  }
-
   grid.innerHTML=html;
+  // Show background button for admins
+  var bgBtn=document.getElementById('bgFooterArea');
+  if(bgBtn) bgBtn.style.display=isAdmin?'block':'none';
 }
 
 /* ───── Section status helpers ───── */
@@ -954,6 +895,7 @@ function toggleSection(secId,on){
   sectionStatus[secId]=on;
   fetch('/api/section-status',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sectionStatus)}).catch(function(){});
   buildHomeGrid();
+  renderMenuSectionsGrid();
   // Re-render page if currently viewing it
   var activePage=document.querySelector('.page.active');
   if(activePage && activePage.id==='menupage_'+secId){
@@ -997,6 +939,16 @@ function buildMenuPages(){
 
   renderAllMenuLists();
 
+  // Menu Sections page
+  var menuSecPage=document.createElement('div');
+  menuSecPage.className='page'; menuSecPage.id='menuSectionsPage';
+  menuSecPage.innerHTML=
+    '<button class="back-btn" onclick="goBack()">&#8592; Back</button>'+
+    '<div class="section-title"><h2>&#128214; Menu Sections</h2></div>'+
+    '<div class="home-grid" id="menuSectionsGrid" style="padding-top:4px;"></div>'+
+    '<button class="back-btn-bottom" onclick="goBack()">&#8592; Back</button>';
+  menuPages.appendChild(menuSecPage);
+
   // Active orders page
   var activePage=document.createElement('div');
   activePage.className='page'; activePage.id='activeOrdersPage';
@@ -1022,6 +974,7 @@ function buildMenuPages(){
       '<button id="ptab-month" class="report-btn" style="flex:1;background:#6a4e2a;" onclick="setPaidFilter(\'month\')">&#128336; This Month</button>'+
       '<button id="ptab-all" class="report-btn" style="flex:1;background:#3a2a1a;" onclick="setPaidFilter(\'all\')">&#128196; All Time</button>'+
       '<button onclick="showDailyReport()" style="background:#2e7d32;color:white;border:none;padding:12px 16px;border-radius:14px;font-weight:700;font-size:14px;cursor:pointer;width:100%;margin:8px 20px 0;">&#128202; Today\'s End-of-Day Report</button>'+
+    '<button onclick="confirmResetTickets()" style="background:#3a0a0a;color:#ff8a65;border:1px solid rgba(255,138,101,0.3);padding:10px 16px;border-radius:14px;font-weight:700;font-size:13px;cursor:pointer;width:100%;margin:8px 20px 0;">&#128465; Reset Ticket Count (Testing)</button>'+
     '</div>'+
     '<div style="display:flex;gap:8px;padding:0 20px 8px;flex-wrap:wrap;">'+
       '<button class="report-btn" style="flex:1;" onclick="sendReport()">&#128172; Daily Report</button>'+
@@ -1072,44 +1025,40 @@ function buildMenuPages(){
     '<div class="section-title"><h2>&#128218; Employee Manual</h2></div>'+
     '<div style="background:#231610;border-radius:22px;padding:20px 24px;border:1px solid rgba(243,207,137,0.14);">'+
     '<div class="manual-section"><h3>&#128274; Logging In</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Open the staff page and enter the password, then tap <strong>Enter</strong>.</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>To change the password tap the <strong>Change Password</strong> card on the dashboard.</p></div>'+
-    '<div class="manual-tip">&#128161; Keep the staff page open on a tablet or phone at the counter for best experience.</div></div>'+
-    '<div class="manual-section"><h3>&#127869; Taking an Order (Staff)</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Tap a <strong>menu section</strong> from the dashboard.</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>Use <strong>+ / -</strong> to add items. Disabled items show "Out of Stock" and cannot be added.</p></div>'+
-    '<div class="manual-step"><div class="num">3</div><p>Tap the golden <strong>Checkout</strong> button, fill in employee name and table, then tap <strong>Add to Active Orders</strong>.</p></div>'+
-    '<div class="manual-tip">&#128161; Customer orders from the customer website appear automatically in Active Orders.</div></div>'+
+    '<div class="manual-step"><div class="num">1</div><p>Open the staff page and enter your password, then tap <strong>Enter</strong>.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p>Only admins can add employees. Contact Mahdi to reset your password.</p></div>'+
+    '<div class="manual-tip">&#128161; Install as an app: open in Safari (iPhone) or Chrome (Android) &#8594; Share &#8594; Add to Home Screen. Works fullscreen like a real app.</div></div>'+
+    '<div class="manual-section"><h3>&#127869; Taking an Order</h3>'+
+    '<div class="manual-step"><div class="num">1</div><p>Tap a <strong>free table</strong> in the Table Status grid. Checkout panel opens with that table pre-selected. Tap the same table again to deselect.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>Menu</strong> then choose a section. Use <strong>+ / -</strong> to add items. Grayed items are out of stock.</p></div>'+
+    '<div class="manual-step"><div class="num">3</div><p>In checkout: confirm your name and table. Add a discount if needed (% or fixed BD). Tap <strong>Add to Active Orders</strong>.</p></div>'+
+    '<div class="manual-tip">&#128276; A voice alert plays on all devices when a new order is placed. Keep volume on.</div></div>'+
+    '<div class="manual-section"><h3>&#128198; Reservations</h3>'+
+    '<div class="manual-step"><div class="num">1</div><p>In the checkout panel, tap <strong>&#128197; Reserve for Later</strong>. Pick a date and time, add a note (Birthday, VIP, etc.).</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p>Reservations appear in <strong style="color:#a89cf5;">purple</strong> at the top of Active Orders. Kitchen does NOT see them yet.</p></div>'+
+    '<div class="manual-step"><div class="num">3</div><p>When ready to cook, tap <strong>&#9654; Start Cooking Now</strong>. It moves to kitchen and stock deducts at that moment.</p></div></div>'+
     '<div class="manual-section"><h3>&#9203; Active Orders</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Each card shows table, items, total, and a live timer (green = on time, yellow = 15 min, red = 30+ min).</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>&#10003; Done</strong> when food is delivered. Tap <strong>&#9998; Edit</strong> to add or remove items before payment.</p></div>'+
-    '<div class="manual-step"><div class="num">3</div><p>Tap <strong>Cash</strong>, <strong>Card</strong>, or <strong>Benefit</strong> to mark as paid. Order moves to Paid Tickets. Inventory deducts automatically.</p></div>'+
-    '<div class="manual-step"><div class="num">4</div><p>Tap <strong>&#128465; Delete</strong> to remove a mistaken order.</p></div>'+
-    '<div class="manual-tip">&#128276; A voice alert and vibration will notify you on new orders. Use <strong>Test Sound</strong> on the dashboard to verify.</div></div>'+
-    '<div class="manual-section"><h3>&#128200; Paid Tickets</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Shows all completed orders for the day with items, totals, and order duration.</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>&#9998; Edit Payment</strong> to correct a wrong payment method.</p></div>'+
-    '<div class="manual-step"><div class="num">3</div><p>Tap <strong>&#128465; Delete</strong> to permanently remove a ticket entered by mistake.</p></div>'+
-    '<div class="manual-step"><div class="num">4</div><p>Tap <strong>Send Report via WhatsApp</strong> for the full daily summary.</p></div>'+
-    '<div class="manual-step"><div class="num">5</div><p>At end of day, tap <strong>Start New Day</strong> to clear all tickets and reset revenue.</p></div></div>'+
+    '<div class="manual-step"><div class="num">1</div><p>Cards show ticket #, table, items, total, and a live timer. Timer glows <strong style="color:#ff5252;">red and pulses</strong> after 20 minutes.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>&#43; Add Staff Note</strong> for an internal note visible to kitchen and staff only.</p></div>'+
+    '<div class="manual-step"><div class="num">3</div><p>Tap <strong>&#9998; Edit</strong> to modify items. If kitchen already marked it ready, editing resets it back to the kitchen queue.</p></div>'+
+    '<div class="manual-step"><div class="num">4</div><p>Tap <strong>&#128179; Pay</strong> &#8594; Cash, Card, or Benefit. Use split payment for mixed payments.</p></div></div>'+
     '<div class="manual-section"><h3>&#128276; Callouts</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>When a customer presses <strong>Call Staff</strong> on the customer page, a voice alert plays and their table number appears here.</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>Dismiss</strong> after attending to the table.</p></div></div>'+
-    '<div class="manual-section"><h3>&#9998; Manage Items</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Use the <strong>toggle switch</strong> to enable/disable items. Disabled items show "Out of Stock" on the customer page.</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>Tap <strong>&#9998;</strong> to edit name, price, or photo/video. Tap <strong>&#128465;</strong> to delete permanently.</p></div>'+
-    '<div class="manual-step"><div class="num">3</div><p>Tap <strong>+ Add Item</strong> to add a new item with name, price, and optional media.</p></div>'+
-    '<div class="manual-tip">&#128161; Create new sections using the <strong>Create New Section</strong> card. Toggle each section card to publish or hide it from customers.</div></div>'+
-    '<div class="manual-section"><h3>&#128230; Inventory</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>Tap <strong>+ Add New Inventory Item</strong>, enter a name (e.g. "Beef"), current stock (e.g. 10), and unit (e.g. kg).</p></div>'+
-    '<div class="manual-step"><div class="num">2</div><p>To link a menu item: go to <strong>Manage Items → ✏ Edit</strong> on the item, scroll to <strong>Inventory Assignment</strong>, pick the inventory item, and enter usage per serving.</p></div>'+
-    '<div class="manual-step"><div class="num">3</div><p>When an order is paid, stock deducts automatically. At zero, linked items <strong>disable themselves</strong>.</p></div>'+
-    '<div class="manual-step"><div class="num">4</div><p>To restock: tap <strong>&#9998; Edit</strong> on the inventory item, update the quantity. Linked items <strong>re-enable automatically</strong>.</p></div>'+
-    '<div class="manual-tip">&#9888; Deduction happens at payment time, not when the order is placed.</div></div>'+
-    '<div class="manual-section"><h3>&#128201; Revenue Tracker</h3>'+
-    '<div class="manual-step"><div class="num">1</div><p>The <strong>Today&#39;s Revenue</strong> bar at the top of the dashboard shows live totals by Cash, Card, and Benefit. Updates every 15 seconds.</p></div></div>'+
+    '<div class="manual-step"><div class="num">1</div><p>When a customer taps Call Staff on the menu page, a voice alert plays on all staff phones.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p><strong>Tap the red table</strong> in the Table Status grid to instantly dismiss the callout — no need to open the Callouts page.</p></div></div>'+
+    '<div class="manual-section"><h3>&#127869; Menu Management</h3>'+
+    '<div class="manual-step"><div class="num">1</div><p>Tap <strong>Menu</strong> on the home screen to see all sections. Toggle each section to show/hide it on the customer menu.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p>In <strong>Manage Items</strong>, tap &#9998; to edit a name, price, or photo. Set both the <strong>English</strong> and <strong>Arabic</strong> display names &#8212; these appear exactly as written on the customer menu.</p></div>'+
+    '<div class="manual-step"><div class="num">3</div><p>Tap the stock badge next to any item to set how many plates are available. It disables automatically at zero.</p></div></div>'+
+    '<div class="manual-section"><h3>&#128200; Paid Tickets</h3>'+
+    '<div class="manual-step"><div class="num">1</div><p>Filter by Today, This Month, or All Time. Tap <strong>End-of-Day Report</strong> for a revenue and top-items summary.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p><strong>Reset Ticket Count</strong> deletes all paid tickets and resets the counter. Only use for testing &#8212; cannot be undone.</p></div></div>'+
+    '<div class="manual-section"><h3>&#128101; Admin Settings</h3>'+
+    '<div class="manual-step"><div class="num">1</div><p><strong>Manage Staff</strong> &#8212; add, edit, or remove employee accounts.</p></div>'+
+    '<div class="manual-step"><div class="num">2</div><p><strong>WhatsApp Report</strong> &#8212; enter your number and CallMeBot key. You will receive an automatic Arabic report every midnight.</p></div>'+
+    '<div class="manual-step"><div class="num">3</div><p><strong>Change Background</strong> &#8212; small button at the bottom of the home screen. Pick any photo from gallery (auto-resized).</p></div>'+
+    '<div class="manual-tip">&#128161; CallMeBot is free. Send "I allow callmebot to send me messages" to +34 644 49 23 20 on WhatsApp to get your API key.</div></div>'+
     '</div>'+
-    '<button class="back-btn-bottom" onclick="goBack()">&#8592; Back to Menu</button>';
+    '<button class="back-btn-bottom" onclick="goBack()">&#8592; Back</button>';
   menuPages.appendChild(manualPage);
 }
 
@@ -1724,6 +1673,9 @@ function openPage(id){
   scrollTop();
   if(id==='__kitchen__'){ window.open('/kitchen.html','_blank'); return; }
   if(id==='__qrcodes__'){ window.open('/qr-tables.html','_blank'); return; }
+  if(id==='__staff__'){ openManageEmployees(); return; }
+  if(id==='__wa__'){ openWaSettings(); return; }
+  if(id==='menuSectionsPage') setTimeout(renderMenuSectionsGrid,50);
   if(id==='activeOrdersPage') loadActiveOrders();
   if(id==='paidTicketsPage') loadPaidTickets();
   if(id==='calloutsPage') loadCallouts();
@@ -2422,6 +2374,14 @@ function renderTableGrid(){
 }
 function tableGridTap(tableNo){
   var ts=String(tableNo);
+  // If table has callout — dismiss it
+  var callout=calloutsData&&calloutsData.find(function(cl){return String(cl.table_number||cl.tableNumber)===ts;});
+  if(callout){
+    fetch('/api/callouts/'+callout.id,{method:'DELETE'})
+    .then(function(){loadCallouts();renderTableGrid();})
+    .catch(function(){});
+    return;
+  }
   var order=activeOrdersData.find(function(o){return (o.table_number||o.tableNumber)===ts;});
   if(order){openPage('activeOrdersPage'); return;}
   var sel=document.getElementById('tableNumber');
@@ -2593,6 +2553,54 @@ function renderReservations(){
         '</div>'+
       '</div>';
     }).join('');
+}
+
+
+/* ───── Render Menu Sections Sub-Grid ───── */
+var SECTION_ICONS={starters:'🥗',main:'🍖',breads:'🫓',sweets:'🍮',hot:'☕',cold:'🧊'};
+function renderMenuSectionsGrid(){
+  var grid=document.getElementById('menuSectionsGrid');
+  if(!grid) return;
+  var html='';
+  var builtinOrder=['starters','main','breads','sweets','hot','cold'];
+  builtinOrder.forEach(function(sec){
+    if(!menu[sec]) return;
+    var status=getSectionStatus(sec,false);
+    var isOn=status!=='maintenance';
+    html+='<div class="section-card" onclick="openPage(\'' + sec + '\')">'+
+      '<div class="card-icon">'+(SECTION_ICONS[sec]||'🍽')+'</div>'+
+      '<h2>'+BUILTIN_SECTION_LABELS[sec]+'</h2>'+
+      '<div onclick="event.stopPropagation()" style="margin-top:2px;">'+
+        '<label class="toggle"><input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\'' + sec + '\',this.checked)"><span class="toggle-slider"></span></label>'+
+      '</div>'+
+    '</div>';
+  });
+  customSectionsData.forEach(function(cs){
+    var secKey='csec_'+cs.id;
+    var status=getSectionStatus(secKey,true);
+    var isOn=status==='active';
+    html+='<div class="section-card" onclick="openPage(\'' + secKey + '\')">'+
+      '<div class="card-icon">🍽</div>'+
+      '<h2>'+cs.name+'</h2>'+
+      '<div style="display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">'+
+        '<label class="toggle"><input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\'' + secKey + '\',this.checked)"><span class="toggle-slider"></span></label>'+
+        '<button style="background:none;border:none;color:#ff8a65;cursor:pointer;font-size:13px;padding:0 4px;" onclick="event.stopPropagation();deleteCustomSection('+cs.id+')">🗑</button>'+
+      '</div>'+
+    '</div>';
+  });
+  html+='<div class="section-card add-section-card" onclick="openCreateSectionModal()">'+
+    '<div class="add-section-inner"><div class="plus">&#43;</div><p>New Section</p></div>'+
+  '</div>';
+  grid.innerHTML=html;
+}
+
+
+/* ───── Reset Tickets (Testing) ───── */
+function confirmResetTickets(){
+  if(!confirm('⚠️ This will permanently delete ALL paid tickets and reset today\'s ticket counter.\n\nOnly use this during testing.\n\nContinue?')) return;
+  fetch('/api/reset-tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+  .then(function(){loadPaidTickets();updateRevenue();alert('✅ All tickets cleared and counter reset.');})
+  .catch(function(){alert('Error resetting tickets.');});
 }
 
 function startPolling(){

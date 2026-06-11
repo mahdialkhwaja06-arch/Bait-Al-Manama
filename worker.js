@@ -399,6 +399,16 @@ export default {
         await writeKV('site-bg:data', { url: body.url || '' });
         return respond({ ok:true });
       }
+      // ── Reset tickets (testing only) ─────────────────────────
+      if (method==='POST' && path_raw==='/reset-tickets') {
+        let orders = await readKV('orders:all', []);
+        orders = orders.filter(o => o.status !== 'paid');
+        await writeKV('orders:all', orders);
+        const dateKey = 'daily-ticket:' + getBahrainDate();
+        await writeKV(dateKey, { counter: 0 });
+        ctx.waitUntil(bumpDataVersion());
+        return respond({ ok: true });
+      }
       // ── Custom item display names (Arabic + English) ──────────
       if (method==='GET' && path_raw==='/item-display-names')
         return respond(await readKV('item-display-names:all', {}));
