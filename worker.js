@@ -409,6 +409,22 @@ export default {
         ctx.waitUntil(bumpDataVersion());
         return respond({ ok: true });
       }
+      // ── Hidden items (invisible on customer page, still on staff) ─
+      if (method==='GET' && path_raw==='/hidden-items')
+        return respond(await readKV('hidden-items:data', {}));
+      if (method==='POST' && path_raw==='/hidden-items') {
+        await writeKV('hidden-items:data', body);
+        ctx.waitUntil(bumpDataVersion());
+        return respond({ ok:true });
+      }
+      // ── Section cover images ──────────────────────────────────
+      if (method==='GET' && path_raw==='/section-covers')
+        return respond(await readKV('section-covers:all', {}));
+      if (method==='POST' && path_raw==='/section-covers') {
+        await writeKV('section-covers:all', body);
+        ctx.waitUntil(bumpDataVersion());
+        return respond({ ok:true });
+      }
       // ── Custom item display names (Arabic + English) ──────────
       if (method==='GET' && path_raw==='/item-display-names')
         return respond(await readKV('item-display-names:all', {}));

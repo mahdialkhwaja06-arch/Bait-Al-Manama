@@ -262,6 +262,12 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 /* ── Reservations section ── */
 .reservations-section{margin:20px;background:#1a1030;border-radius:20px;border:2px solid rgba(124,106,243,0.4);padding:16px;}
 .reservations-section h3{color:#a89cf5;font-size:16px;margin-bottom:12px;}
+
+/* ── Hidden item indicator ── */
+.item-hidden-badge{display:inline-block;background:rgba(255,138,101,0.15);color:#ff8a65;border:1px solid rgba(255,138,101,0.35);border-radius:6px;font-size:10px;padding:1px 7px;font-weight:700;margin-top:3px;}
+.manage-item-row.row-hidden{opacity:0.55;}
+.manage-hide-btn{background:rgba(255,138,101,0.12);border:1px solid rgba(255,138,101,0.3);color:#ff8a65;width:32px;height:32px;border-radius:10px;cursor:pointer;font-size:15px;}
+.manage-hide-btn.row-visible{background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#aaa;}
 </style>
 <script>if(!sessionStorage.getItem('bam_current_employee')){window.location.replace('/');}</script>
 </head>
@@ -629,6 +635,8 @@ var paidTicketsFilter = 'today';
 var itemStockData = {};
 var calloutsData = [];
 var disabledItems = {};
+var hiddenItems = {};
+var sectionCovers = {};
 var editingOrderId = null;
 var editItems = {};
 
@@ -779,7 +787,9 @@ function loadAllData(){
     fetch('/api/custom-sections').then(function(r){return r.json();}),
     fetch('/api/section-status').then(function(r){return r.json();}),
     fetch('/api/inventory').then(function(r){return r.json();}),
-    fetch('/api/item-inventory').then(function(r){return r.json();})
+    fetch('/api/item-inventory').then(function(r){return r.json();}),
+    fetch('/api/hidden-items').then(function(r){return r.json();}),
+    fetch('/api/section-covers').then(function(r){return r.json();})
   ]).then(function(results){
     customItemsData=results[0]||[];
     var overrideRaw=results[1];
@@ -791,6 +801,8 @@ function loadAllData(){
     sectionStatus=results[4]||{};
     inventoryData=results[5]||[];
     itemInventoryData=results[6]||{};
+    hiddenItems=results[7]||{};
+    sectionCovers=results[8]||{};
     rebuildMenu();
     buildHomeGrid();
     buildMenuPages();
@@ -1109,16 +1121,18 @@ function renderManageItems(){
     menu[sec].forEach(function(item){
       var name=item[0]; var price=item[1]; var meta=item[2]||'';
       var enabled=!disabledItems[name];
+      var isHidden=!!hiddenItems[name];
       var isCustom=meta.indexOf('custom:')===0;
       var customId=isCustom?meta.replace('custom:',''):'';
       var origName=name;
       if(!isCustom){
         for(var k in menuOverrides){ if(menuOverrides[k].name===name){ origName=k; break; } }
       }
-      html+='<div class="manage-item-row">'+
+      html+='<div class="manage-item-row'+(isHidden?' row-hidden':'')+'">'+
         '<div style="flex:1;min-width:0;">'+
           '<div class="manage-item-name">'+name+'</div>'+
           '<div class="manage-item-price">'+price.toFixed(3)+' BD</div>'+
+          (isHidden?'<div class="item-hidden-badge">&#128584; Hidden from customers</div>':'')+
           ''+buildStockBadge(name)+
         '</div>'+
         '<div class="manage-item-actions">'+
@@ -1129,6 +1143,9 @@ function renderManageItems(){
               '<span class="toggle-slider"></span>'+
             '</label>'+
           '</div>'+
+          '<button class="manage-hide-btn'+(isHidden?'':' row-visible')+'" onclick="toggleHideItem(\''+esc(name)+'\')" title="'+(isHidden?'Show on customer menu':'Hide from customer menu')+'">'+
+            (isHidden?'&#128584;':'&#128065;')+
+          '</button>'+
           '<button class="manage-edit-btn" onclick="openEditItemModal(\''+(isCustom?'custom:'+customId:'builtin:'+origName)+'\',\''+esc(name)+'\','+price+',\''+esc(images[name]||'')+'\','+!!(isVideoItems[name])+')">&#9998;</button>'+
           '<button class="manage-delete-btn" onclick="deleteItem(\''+(isCustom?'custom:'+customId:'builtin:'+origName)+'\',\''+esc(name)+'\')">&#128465;</button>'+
         '</div>'+
@@ -2567,11 +2584,15 @@ function renderMenuSectionsGrid(){
     if(!menu[sec]) return;
     var status=getSectionStatus(sec,false);
     var isOn=status!=='maintenance';
-    html+='<div class="section-card" onclick="openPage(\'' + sec + '\')">'+
-      '<div class="card-icon">'+(SECTION_ICONS[sec]||'🍽')+'</div>'+
+    var coverUrl=sectionCovers[sec]||BUILTIN_SECTION_IMAGES[sec]||'';
+    html+='<div class="section-card" onclick="openPage(\''+sec+'\')">'+
+      '<div style="position:relative;width:100%;height:58px;border-radius:10px;overflow:hidden;margin-bottom:4px;">'+
+        '<img src="'+coverUrl+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.src=\'\'">'+
+        (isAdmin?'<button onclick="event.stopPropagation();openSectionCoverPicker(\''+sec+'\')" style="position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,0.72);border:none;color:white;padding:3px 7px;border-radius:7px;font-size:11px;cursor:pointer;">&#128247;</button>':'')+
+      '</div>'+
       '<h2>'+BUILTIN_SECTION_LABELS[sec]+'</h2>'+
       '<div onclick="event.stopPropagation()" style="margin-top:2px;">'+
-        '<label class="toggle"><input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\'' + sec + '\',this.checked)"><span class="toggle-slider"></span></label>'+
+        '<label class="toggle"><input type="checkbox" '+(isOn?'checked':'')+' onchange="toggleSection(\''+sec+'\',this.checked)"><span class="toggle-slider"></span></label>'+
       '</div>'+
     '</div>';
   });
@@ -2579,7 +2600,12 @@ function renderMenuSectionsGrid(){
     var secKey='csec_'+cs.id;
     var status=getSectionStatus(secKey,true);
     var isOn=status==='active';
-    html+='<div class="section-card" onclick="openPage(\'' + secKey + '\')">'+
+    var csecCover=sectionCovers[secKey]||cs.cover_image||'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=800';
+    html+='<div class="section-card" onclick="openPage(\'' + secKey + '\')">' +
+      '<div style="position:relative;width:100%;height:58px;border-radius:10px;overflow:hidden;margin-bottom:2px;">'+
+        '<img src="'+csecCover+'" style="width:100%;height:100%;object-fit:cover;" onerror="this.src=\'\'">'+
+        (isAdmin?'<button onclick="event.stopPropagation();openSectionCoverPicker(\'' + secKey + '\')" style="position:absolute;bottom:3px;right:3px;background:rgba(0,0,0,0.72);border:none;color:white;padding:3px 7px;border-radius:7px;font-size:11px;cursor:pointer;">&#128247;</button>':'')+
+      '</div>'+
       '<div class="card-icon">🍽</div>'+
       '<h2>'+cs.name+'</h2>'+
       '<div style="display:flex;align-items:center;gap:4px;" onclick="event.stopPropagation()">'+
@@ -2601,6 +2627,45 @@ function confirmResetTickets(){
   fetch('/api/reset-tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
   .then(function(){loadPaidTickets();updateRevenue();alert('✅ All tickets cleared and counter reset.');})
   .catch(function(){alert('Error resetting tickets.');});
+}
+
+
+/* ───── Hide / Show Items from Customer Page ───── */
+function toggleHideItem(name){
+  if(hiddenItems[name]) delete hiddenItems[name];
+  else hiddenItems[name]=true;
+  fetch('/api/hidden-items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(hiddenItems)})
+  .then(function(){renderManageItems();})
+  .catch(function(){});
+}
+
+
+/* ───── Section Cover Image Picker ───── */
+function openSectionCoverPicker(secId){
+  var input=document.createElement('input');
+  input.type='file'; input.accept='image/*';
+  input.onchange=function(e){
+    var file=e.target.files[0]; if(!file) return;
+    var reader=new FileReader();
+    reader.onload=function(ev){
+      var img=new Image();
+      img.onload=function(){
+        var canvas=document.createElement('canvas');
+        var maxW=1200,ratio=Math.min(maxW/img.width,1);
+        canvas.width=Math.round(img.width*ratio);
+        canvas.height=Math.round(img.height*ratio);
+        canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+        var dataUrl=canvas.toDataURL('image/jpeg',0.82);
+        sectionCovers[secId]=dataUrl;
+        fetch('/api/section-covers',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(sectionCovers)})
+        .then(function(){renderMenuSectionsGrid();})
+        .catch(function(){});
+      };
+      img.src=ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  };
+  input.click();
 }
 
 function startPolling(){

@@ -170,6 +170,8 @@ var menu = JSON.parse(JSON.stringify(defaultMenu));
 var sectionLabels = Object.assign({},BUILTIN_LABELS);
 var isVideoItems = {};
 var disabledItems = {};
+var hiddenItems = {};
+var sectionCovers = {};
 var menuOverrides = {};
 var deletedBuiltins = {};
 var customSectionsData = [];
@@ -242,7 +244,7 @@ function buildHomeGrid(){
     var vis=getSectionVisible(sec,false);
     var isMaint=(vis==='maintenance');
     html+='<div class="section-card'+(isMaint?' maintenance':'')+(isMaint?'" onclick="showMaintenance(\''+BUILTIN_LABELS[sec]+'\')':'" onclick="openPage(\''+sec+'\')')+'">' +
-      '<img src="'+BUILTIN_IMAGES[sec]+'" onerror="this.src=\'\'">' +
+      '<img src="'+(sectionCovers[sec]||BUILTIN_IMAGES[sec])+'" onerror="this.src=\'\'">' +
       '<div class="section-card-content"><h2>'+getSectionName(BUILTIN_LABELS[sec])+'</h2></div>' +
       (isMaint?'<div class="maintenance-overlay"><div class="maint-icon">&#128679;</div><div class="maint-text">Under Maintenance</div><div class="maint-sub">Coming back soon</div></div>':'')+
     '</div>';
@@ -252,7 +254,7 @@ function buildHomeGrid(){
     var vis=getSectionVisible(secKey,true);
     if(vis==='hidden') return;
     var isMaint=(vis==='maintenance');
-    var imgSrc=cs.cover_image||'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1200';
+    var imgSrc=sectionCovers['csec_'+cs.id]||cs.cover_image||'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?q=80&w=1200';
     html+='<div class="section-card'+(isMaint?' maintenance':'')+(isMaint?'" onclick="showMaintenance(\''+cs.name+'\')':'" onclick="openPage(\''+secKey+'\')')+'">' +
       '<img src="'+imgSrc+'" onerror="this.src=\'\'">' +
       '<div class="section-card-content"><h2>'+getSectionName(cs.name)+'</h2></div>' +
@@ -290,6 +292,7 @@ function renderMenuList(container,sec){
   if(!listDiv||!menu[sec]) return;
   listDiv.innerHTML=menu[sec].map(function(item){
     var name=item[0]; var price=item[1];
+    if(hiddenItems[name]) return null; // completely hidden
     var disabled=!!disabledItems[name];
     var imgSrc=images[name]||'';
     var isVid=!!isVideoItems[name];
@@ -306,7 +309,7 @@ function renderMenuList(container,sec){
         (disabled ? '<span class="out-of-stock-label">'+(LANG==='ar'?'نفذ المخزون':'Out of Stock')+'</span>' : '')+
       '</div>'+
     '</div>';
-  }).join('');
+  }).filter(Boolean).join('');
 }
 
 function refreshAllLists(){
@@ -323,12 +326,16 @@ function loadAllData(){
     fetch('/api/menu-overrides').then(function(r){return r.json();}),
     fetch('/api/disabled-items').then(function(r){return r.json();}),
     fetch('/api/custom-sections').then(function(r){return r.json();}),
-    fetch('/api/section-status').then(function(r){return r.json();})
+    fetch('/api/section-status').then(function(r){return r.json();}),
+    fetch('/api/hidden-items').then(function(r){return r.json();}),
+    fetch('/api/section-covers').then(function(r){return r.json();})
   ]).then(function(results){
     customSectionsData=results[3]||[];
     sectionStatus=results[4]||{};
     rebuildMenu(results[0],results[1]);
     disabledItems=results[2]||{};
+    hiddenItems=results[5]||{};
+    sectionCovers=results[6]||{};
     buildHomeGrid();
     buildMenuPages();
   }).catch(function(){
@@ -346,12 +353,16 @@ setInterval(function(){
     fetch('/api/menu-overrides'+t).then(function(r){return r.json();}),
     fetch('/api/disabled-items'+t).then(function(r){return r.json();}),
     fetch('/api/custom-sections'+t).then(function(r){return r.json();}),
-    fetch('/api/section-status'+t).then(function(r){return r.json();})
+    fetch('/api/section-status'+t).then(function(r){return r.json();}),
+    fetch('/api/hidden-items'+t).then(function(r){return r.json();}),
+    fetch('/api/section-covers'+t).then(function(r){return r.json();})
   ]).then(function(results){
     customSectionsData=results[3]||[];
     sectionStatus=results[4]||{};
     rebuildMenu(results[0],results[1]);
     disabledItems=results[2]||{};
+    hiddenItems=results[5]||{};
+    sectionCovers=results[6]||{};
     buildHomeGrid();
     refreshAllLists();
   }).catch(function(){});
