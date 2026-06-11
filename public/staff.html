@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#1c120b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="بيت المنامة">
+<link rel="apple-touch-icon" href="/icon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bait Al-Manama - Staff</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -23,7 +30,7 @@ header{padding:10px 16px 12px;display:flex;flex-direction:column;align-items:cen
 header .hdr-logo{width:160px;max-width:55vw;filter:brightness(0) invert(1) sepia(0.35) saturate(3) hue-rotate(3deg) brightness(0.97);opacity:0.92;margin-bottom:4px;}
 header p{color:rgba(245,226,186,0.75);font-size:13px;margin-top:2px;}
 .home-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;padding:20px;max-width:1200px;margin:auto;}
-.section-card{background:rgba(255,255,255,0.08);backdrop-filter:blur(10px);border-radius:24px;overflow:hidden;cursor:pointer;transition:0.3s;border:1px solid rgba(255,255,255,0.06);}
+.section-card{background:#231610;border-radius:24px;overflow:hidden;cursor:pointer;transition:transform 0.25s,box-shadow 0.25s;border:1px solid rgba(243,207,137,0.12);box-shadow:0 4px 18px rgba(0,0,0,0.45);}
 .section-card:hover{transform:translateY(-4px);}
 .section-card img{width:100%;height:160px;object-fit:cover;}
 .section-card-content{padding:14px 16px;}
@@ -46,7 +53,7 @@ header p{color:rgba(245,226,186,0.75);font-size:13px;margin-top:2px;}
 .section-title{text-align:center;margin-bottom:20px;}
 .section-title h2{font-size:30px;color:#f3cf89;}
 .maintenance-banner{background:rgba(255,107,53,0.15);border:1px solid rgba(255,107,53,0.3);border-radius:14px;padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:10px;color:#ff8a65;font-size:13px;}
-.menu-list-wrapper{background:rgba(255,255,255,0.08);border-radius:22px;overflow:hidden;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);}
+.menu-list-wrapper{background:#231610;border-radius:22px;overflow:hidden;border:1px solid rgba(243,207,137,0.12);box-shadow:0 4px 14px rgba(0,0,0,0.35);}
 .menu-list{display:flex;flex-direction:column;}
 .menu-list-item{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid rgba(255,255,255,0.07);}
 .menu-list-item:last-child{border-bottom:none;}
@@ -96,7 +103,7 @@ video.item-thumb{width:80px;height:80px;border-radius:14px;object-fit:cover;flex
 .file-info.err{color:#c62828;}
 .media-preview{margin-bottom:12px;display:none;border-radius:12px;overflow:hidden;}
 .media-preview img,.media-preview video{width:100%;height:160px;object-fit:cover;display:block;}
-.order-card{background:rgba(255,255,255,0.08);border-radius:20px;padding:16px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.06);}
+.order-card{background:#231610;border-radius:20px;padding:16px;margin-bottom:14px;border:1px solid rgba(243,207,137,0.14);box-shadow:0 4px 16px rgba(0,0,0,0.4);}
 .order-timer{font-size:14px;font-weight:700;margin-bottom:8px;}
 .employee-badge{display:inline-block;background:rgba(243,207,137,0.15);border:1px solid rgba(243,207,137,0.3);border-radius:10px;padding:4px 10px;font-size:13px;color:#f3cf89;margin-bottom:8px;}
 .action-buttons{display:flex;gap:8px;flex-wrap:wrap;}
@@ -138,7 +145,7 @@ input:checked+.toggle-slider:before{transform:translateX(20px);}
 .m-controls{display:flex;align-items:center;gap:6px;}
 .m-controls button{width:28px;height:28px;border:none;border-radius:8px;background:#f1e8d9;color:#1c120b;font-size:16px;font-weight:700;cursor:pointer;}
 .m-qty{font-size:16px;font-weight:700;min-width:18px;text-align:center;}
-.inv-card{background:rgba(255,255,255,0.08);border-radius:20px;padding:16px;margin-bottom:14px;border:1px solid rgba(255,255,255,0.06);}
+.inv-card{background:#231610;border-radius:20px;padding:16px;margin-bottom:14px;border:1px solid rgba(243,207,137,0.14);box-shadow:0 4px 14px rgba(0,0,0,0.35);}
 .inv-card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;}
 .inv-name{font-size:18px;font-weight:700;color:#fff1ca;}
 .inv-qty{font-size:26px;font-weight:800;margin:4px 0;}
@@ -239,6 +246,19 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 .staff-note-edit{width:100%;background:rgba(243,207,137,0.1);border:1px solid rgba(243,207,137,0.4);border-radius:10px;padding:8px;color:white;font-size:13px;font-family:inherit;resize:none;margin-top:6px;outline:none;}
 /* ── Low stock banner ── */
 #lowStockBanner{background:rgba(255,138,101,0.18);border:1px solid rgba(255,138,101,0.45);border-radius:14px;padding:10px 16px;margin:0 20px 14px;font-size:13px;color:#ff8a65;font-weight:700;display:none;line-height:1.5;}
+
+/* ── Reservation order cards ── */
+.order-card.card-reservation{border:2px solid #7c6af3;box-shadow:0 0 0 2px rgba(124,106,243,0.25);}
+.reservation-badge{background:#7c6af3;color:white;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:800;}
+/* ── Order mode toggle ── */
+.order-mode-toggle{display:flex;border-radius:12px;overflow:hidden;border:1.5px solid rgba(243,207,137,0.3);margin-bottom:10px;}
+.order-mode-btn{flex:1;padding:10px;border:none;font-weight:800;font-size:13px;cursor:pointer;font-family:'Cairo',sans-serif;transition:background 0.2s,color 0.2s;}
+.order-mode-btn.active-mode{background:#f3cf89;color:#1c120b;}
+.order-mode-btn.inactive-mode{background:transparent;color:#f3cf89;}
+.order-mode-btn.reserve-active{background:#7c6af3;color:#fff;}
+/* ── Reservations section ── */
+.reservations-section{margin:20px;background:#1a1030;border-radius:20px;border:2px solid rgba(124,106,243,0.4);padding:16px;}
+.reservations-section h3{color:#a89cf5;font-size:16px;margin-bottom:12px;}
 </style>
 <script>if(!sessionStorage.getItem('bam_current_employee')){window.location.replace('/');}</script>
 </head>
@@ -309,6 +329,18 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 </select>
 </div>
 <textarea id="notes" placeholder="Special Notes"></textarea>
+<div id="reservationToggleSection" style="margin-top:10px;">
+  <div class="order-mode-toggle">
+    <button class="order-mode-btn active-mode" id="orderModeBtn" onclick="setOrderMode('order')">🍽 Order Now</button>
+    <button class="order-mode-btn inactive-mode" id="reserveModeBtn" onclick="setOrderMode('reserve')">📅 Reserve for Later</button>
+  </div>
+  <div id="reserveFields" style="display:none;background:#1a1030;border-radius:12px;padding:14px;border:1px solid rgba(124,106,243,0.4);margin-top:4px;">
+    <label style="color:#a89cf5;font-size:13px;font-weight:700;display:block;margin-bottom:6px;">📅 Date &amp; Time</label>
+    <input type="datetime-local" id="reserveDateTime" style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(124,106,243,0.5);background:#231245;color:white;font-size:14px;font-family:'Cairo',sans-serif;margin-bottom:10px;">
+    <label style="color:#a89cf5;font-size:13px;font-weight:700;display:block;margin-bottom:6px;">📝 Reservation Note</label>
+    <input type="text" id="reserveNote" placeholder="e.g. Birthday, Anniversary, VIP..." style="width:100%;padding:10px;border-radius:10px;border:1.5px solid rgba(124,106,243,0.5);background:#231245;color:white;font-size:13px;font-family:'Cairo',sans-serif;">
+  </div>
+</div>
 </div>
 <button class="send-btn" id="sendBtn" onclick="sendOrder()">Add to Active Orders</button>
 </div>
@@ -380,8 +412,10 @@ footer h2{color:#f3cf89;font-size:28px;margin-bottom:8px;}
 <div id="editItemModal" class="modal-overlay">
 <div class="modal-box">
 <h2>Edit Item</h2>
-<label class="modal-label">Item Name *</label>
-<input type="text" class="modal-input" id="editItemName" placeholder="Item name">
+<label class="modal-label">Item Name (English) *</label>
+<input type="text" class="modal-input" id="editItemName" placeholder="Item name in English">
+<label class="modal-label">Item Name (Arabic) <span style="font-weight:400;color:#5a4a3a;">اسم العنصر بالعربية</span></label>
+<input type="text" class="modal-input" id="editItemArName" placeholder="الاسم بالعربية (اختياري)" dir="auto">
 <label class="modal-label">Price (BD) *</label>
 <input type="number" class="modal-input" id="editItemPrice" placeholder="0.000" step="0.001" min="0">
 <label class="modal-label">Photo / Video (optional)</label>
@@ -895,6 +929,10 @@ function buildHomeGrid(){
       '<img src="https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800" onerror="this.src=\'\'">'+
       '<div class="section-card-content"><h2><span id="bgPickerBtn">&#127748; Change Background</span></h2></div>'+
     '</div>';
+    html+='<div class="section-card" onclick="openWaSettings()">'+
+      '<img src="https://images.unsplash.com/photo-1611162617474-5b21e879e113?q=80&w=800" onerror="this.src=\'\'">'+
+      '<div class="section-card-content"><h2>&#128242; WhatsApp Report</h2></div>'+
+    '</div>';
   }
 
   grid.innerHTML=html;
@@ -965,9 +1003,10 @@ function buildMenuPages(){
   activePage.innerHTML=
     '<button class="back-btn" onclick="goBack()">&#8592; Back</button>'+
     '<div class="section-title"><h2>Active Orders</h2></div>'+
-    '<div style="background:rgba(255,255,255,0.08);border-radius:16px;padding:14px 20px;margin-bottom:20px;text-align:center;border:1px solid rgba(255,255,255,0.1);">'+
+    '<div style="background:#231610;border-radius:16px;padding:14px 20px;margin-bottom:20px;text-align:center;border:1px solid rgba(243,207,137,0.14);">'+
     '<p style="color:#f5e2ba;font-size:14px;margin-bottom:4px;">Benefit No.</p>'+
     '<p style="color:#f3cf89;font-size:26px;font-weight:800;letter-spacing:2px;">33691669</p></div>'+
+    '<div id="reservationsContainer" style="display:none;background:#1a1030;border-radius:20px;border:2px solid rgba(124,106,243,0.4);padding:16px;margin-bottom:16px;"></div>'+
     '<div id="activeOrdersContainer"><div class="loading-spinner">Loading orders...</div></div>'+
     '<button class="back-btn-bottom" onclick="goBack()">&#8592; Back to Menu</button>';
   menuPages.appendChild(activePage);
@@ -1031,7 +1070,7 @@ function buildMenuPages(){
   manualPage.innerHTML=
     '<button class="back-btn" onclick="goBack()">&#8592; Back</button>'+
     '<div class="section-title"><h2>&#128218; Employee Manual</h2></div>'+
-    '<div style="background:rgba(255,255,255,0.08);border-radius:22px;padding:20px 24px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);">'+
+    '<div style="background:#231610;border-radius:22px;padding:20px 24px;border:1px solid rgba(243,207,137,0.14);">'+
     '<div class="manual-section"><h3>&#128274; Logging In</h3>'+
     '<div class="manual-step"><div class="num">1</div><p>Open the staff page and enter the password, then tap <strong>Enter</strong>.</p></div>'+
     '<div class="manual-step"><div class="num">2</div><p>To change the password tap the <strong>Change Password</strong> card on the dashboard.</p></div>'+
@@ -1116,7 +1155,7 @@ function renderManageItems(){
   if(!c) return;
   var html='';
   for(var sec in menu){
-    html+='<div style="margin-bottom:20px;"><div style="background:rgba(255,255,255,0.08);border-radius:22px;overflow:hidden;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,0.06);">'+
+    html+='<div style="margin-bottom:20px;"><div style="background:#231610;border-radius:22px;overflow:hidden;border:1px solid rgba(243,207,137,0.12);">'+
       '<div style="padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.1);"><h3 style="color:#f3cf89;">'+sectionLabels[sec]+'</h3></div>';
     menu[sec].forEach(function(item){
       var name=item[0]; var price=item[1]; var meta=item[2]||'';
@@ -1525,6 +1564,8 @@ function openEditItemModal(key,name,price,imageUrl,isVid){
   editingItemKey=key;
   editingItemOriginalName=name;
   document.getElementById('editItemName').value=name;
+  var dn=customDisplayNames[name]||{};
+  if(document.getElementById('editItemArName')) document.getElementById('editItemArName').value=dn.ar||'';
   document.getElementById('editItemPrice').value=price.toFixed(3);
   document.getElementById('editItemPhoto').value=imageUrl||'';
   document.getElementById('editItemError').style.display='none';
@@ -1567,6 +1608,7 @@ function closeEditItemModal(){ document.getElementById('editItemModal').classLis
 
 async function saveItemEdit(){
   var name=document.getElementById('editItemName').value.trim();
+  var arName=(document.getElementById('editItemArName')&&document.getElementById('editItemArName').value.trim())||'';
   var priceStr=document.getElementById('editItemPrice').value.trim();
   var errEl=document.getElementById('editItemError');
   errEl.style.display='none';
@@ -1622,6 +1664,14 @@ async function saveItemEdit(){
       delete itemInventoryData[name];
     }
     await fetch('/api/item-inventory',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(itemInventoryData)});
+    // Save custom display names (EN + AR)
+    if(name){
+      var dn=customDisplayNames[name]||{};
+      dn.en=name;
+      dn.ar=arName||'';
+      customDisplayNames[name]=dn;
+      await fetch('/api/item-display-names',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(customDisplayNames)}).catch(function(){});
+    }
     await refreshAllData();
     closeEditItemModal();
   } catch(e){
@@ -1834,7 +1884,11 @@ function sendOrder(){
   if(itemsList.length===0) return;
   total=Math.max(0,Math.round((total-discountValue)*1000)/1000);
   var sendBtn=document.getElementById('sendBtn'); sendBtn.disabled=true; sendBtn.innerText='Saving...';
-  fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerName:employee,tableNumber:table,items:itemsList,total:total,notes:notes})})
+  fetch('/api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({customerName:employee,tableNumber:table,items:itemsList,total:total,notes:notes,
+    isReservation:currentOrderMode==='reserve',
+    reservationTime:currentOrderMode==='reserve'?(document.getElementById('reserveDateTime')&&document.getElementById('reserveDateTime').value||null):null,
+    reservationNote:currentOrderMode==='reserve'?(document.getElementById('reserveNote')&&document.getElementById('reserveNote').value.trim()||''):''
+  })})
   .then(function(res){if(!res.ok)throw new Error('Failed');return res.json();})
   .then(function(){resetOrder();loadActiveOrders();})
   .catch(function(err){alert('Error: '+err.message);})
@@ -1842,6 +1896,7 @@ function sendOrder(){
 }
 function resetOrder(){
   discountValue=0;
+  setOrderMode('order');
   for(var item in localOrders){localOrders[item].qty=0;}
   document.querySelectorAll('.qty').forEach(function(el){el.innerText='0';});
   if(!currentEmployee) document.getElementById('employeeName').value='';
@@ -1875,6 +1930,7 @@ function loadActiveOrders(){
     }
     prevOrderIds=activeOrdersData.map(function(o){return o.id;});
     renderActiveOrders();
+    renderReservations();
     updateBadge();
     renderTableGrid();
   }).catch(function(){});
@@ -1882,8 +1938,9 @@ function loadActiveOrders(){
 function renderActiveOrders(){
   var c=document.getElementById('activeOrdersContainer');
   if(!c) return;
-  if(activeOrdersData.length===0){c.innerHTML='<div class="order-card"><h3>No Active Orders</h3></div>';return;}
-  c.innerHTML=activeOrdersData.map(function(order){
+  var activeOnly=activeOrdersData.filter(function(o){return o.status!=='reservation';});
+  if(activeOnly.length===0){c.innerHTML='<div class="order-card"><h3>No Active Orders</h3></div>';return;}
+  c.innerHTML=activeOnly.map(function(order){
     var items=typeof order.items==='string'?JSON.parse(order.items):order.items;
     var isCompleted=!!(order.completed_at||order.completedAt);
     return '<div class="order-card">'+
@@ -1974,7 +2031,8 @@ function markPaid(id,method){
 function updateBadge(){
   var badge=document.getElementById('orderCountBadge');
   if(!badge) return;
-  if(activeOrdersData.length>0){badge.innerText=activeOrdersData.length;badge.style.display='inline-block';}
+  var activeCount=activeOrdersData.filter(function(o){return o.status!=='reservation';}).length;
+  if(activeCount>0){badge.innerText=activeCount;badge.style.display='inline-block';}
   else{badge.style.display='none';}
 }
 
@@ -2343,17 +2401,21 @@ function renderTableGrid(){
   var grid=document.getElementById('tableStatusGrid');
   if(!grid) return;
   var html='';
+  var selVal=document.getElementById('tableNumber');
+  var currentSelected=selVal?selVal.value:'';
   for(var t=1;t<=10;t++){
     var ts=String(t);
     var hasOrder=activeOrdersData.some(function(o){return (o.table_number||o.tableNumber)===ts;});
     var hasCallout=calloutsData&&calloutsData.some(function(c){return (c.table_number||c.tableNumber)===ts;});
-    var bg=hasCallout?'#ff6b35':hasOrder?'#f3cf89':'rgba(255,255,255,0.1)';
-    var tc=hasCallout?'#fff':hasOrder?'#1c120b':'#aaa';
-    var icon=hasCallout?'🔔':hasOrder?'🍽':'✓';
-    html+='<div onclick="tableGridTap('+t+')" style="background:'+bg+';color:'+tc+';border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;border:1px solid rgba(255,255,255,0.07);">'+
-      '<div style="font-size:10px;font-weight:600;opacity:0.8;">T</div>'+
+    var isSelected=(!hasOrder&&!hasCallout&&currentSelected===ts);
+    var bg=hasCallout?'#c0391b':hasOrder?'#c49a00':isSelected?'#2e7d32':'#2a1c11';
+    var tc=hasCallout?'#fff':hasOrder?'#fff':isSelected?'#fff':'#c8a96e';
+    var icon=hasCallout?'🔔':hasOrder?'🍽':isSelected?'✓':'';
+    var border=isSelected?'2px solid #4caf50':'1px solid rgba(243,207,137,0.18)';
+    html+='<div onclick="tableGridTap('+t+')" style="background:'+bg+';color:'+tc+';border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;border:'+border+';box-shadow:0 3px 10px rgba(0,0,0,0.4);">'+
+      '<div style="font-size:10px;font-weight:600;opacity:0.75;">T</div>'+
       '<div style="font-size:20px;font-weight:800;line-height:1.1;">'+t+'</div>'+
-      '<div style="font-size:14px;">'+icon+'</div>'+
+      '<div style="font-size:13px;min-height:16px;">'+icon+'</div>'+
     '</div>';
   }
   grid.innerHTML=html;
@@ -2361,12 +2423,19 @@ function renderTableGrid(){
 function tableGridTap(tableNo){
   var ts=String(tableNo);
   var order=activeOrdersData.find(function(o){return (o.table_number||o.tableNumber)===ts;});
-  if(order){openPage('activeOrdersPage');}
-  else{
-    var sel=document.getElementById('tableNumber');
-    if(sel){sel.value=ts;}
-    document.getElementById('checkoutBtn').classList.add('active');
+  if(order){openPage('activeOrdersPage'); return;}
+  var sel=document.getElementById('tableNumber');
+  var checkoutBtn=document.getElementById('checkoutBtn');
+  if(sel&&sel.value===ts){
+    // Same free table tapped again — deselect
+    sel.value='';
+    if(checkoutBtn) checkoutBtn.classList.remove('active');
+  } else {
+    // New free table selected
+    if(sel) sel.value=ts;
+    if(checkoutBtn) checkoutBtn.classList.add('active');
   }
+  renderTableGrid(); // Refresh to show selection state
 }
 
 /* ───── Discount ───── */
@@ -2445,7 +2514,89 @@ function closeReportModal(){
   document.getElementById('reportModal').style.display='none';
 }
 
+
+/* ───── Custom Item Display Names ───── */
+var customDisplayNames = {};
+function loadCustomDisplayNames(){
+  fetch('/api/item-display-names').then(function(r){return r.json();})
+  .then(function(d){customDisplayNames=d||{};}).catch(function(){});
+}
+
+/* ───── Reservation / Order Mode Toggle ───── */
+var currentOrderMode = 'order';
+function setOrderMode(mode){
+  currentOrderMode=mode;
+  var ob=document.getElementById('orderModeBtn');
+  var rb=document.getElementById('reserveModeBtn');
+  var rf=document.getElementById('reserveFields');
+  var sb=document.getElementById('sendBtn');
+  if(ob){ob.className='order-mode-btn'+(mode==='order'?' active-mode':' inactive-mode');}
+  if(rb){rb.className='order-mode-btn'+(mode==='reserve'?' reserve-active':' inactive-mode');}
+  if(rf){rf.style.display=mode==='reserve'?'block':'none';}
+  if(sb){sb.innerText=mode==='reserve'?'📅 Reserve Table':'Add to Active Orders';}
+}
+
+/* ───── WhatsApp Settings ───── */
+function openWaSettings(){
+  fetch('/api/report-settings').then(function(r){return r.json();}).then(function(d){
+    var phone=prompt('WhatsApp phone (with country code, no +)\ne.g. 97366644288\nCurrently: '+(d.waPhone||'not set'),d.waPhone||'');
+    if(phone===null) return;
+    var key=prompt('CallMeBot API key\n(Get it free: send "I allow callmebot to send me messages" to +34 644 49 23 20 on WhatsApp)\nCurrently: '+(d.waApiKey||'not set'),d.waApiKey||'');
+    if(key===null) return;
+    fetch('/api/report-settings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({waPhone:phone,waApiKey:key})})
+    .then(function(){alert('✅ WhatsApp settings saved!\nYou\'ll receive a daily report at midnight.');})
+    .catch(function(){alert('Error saving settings.');});
+  });
+}
+
+/* ───── Reservation display helpers ───── */
+function formatReserveTime(iso){
+  if(!iso) return '';
+  var d=new Date(iso);
+  return d.toLocaleDateString('en-BH',{weekday:'short',month:'short',day:'numeric'})+' '+
+         d.toLocaleTimeString('en-BH',{hour:'2-digit',minute:'2-digit'});
+}
+function activateReservation(id){
+  if(!confirm('Activate this reservation now?\nThe kitchen will start preparing it.')) return;
+  fetch('/api/orders/'+id+'/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})
+  .then(function(){loadActiveOrders();}).catch(function(){});
+}
+
+
+/* ───── Render Reservation Section ───── */
+function renderReservations(){
+  var reservations=activeOrdersData.filter(function(o){return o.status==='reservation';});
+  var container=document.getElementById('reservationsContainer');
+  if(!container) return;
+  if(reservations.length===0){container.style.display='none';return;}
+  container.style.display='block';
+  container.innerHTML='<h3 style="color:#a89cf5;font-size:15px;margin-bottom:12px;display:flex;align-items:center;gap:8px;"><span style="font-size:20px;">📅</span> Upcoming Reservations ('+reservations.length+')</h3>'+
+    reservations.map(function(order){
+      var items=typeof order.items==='string'?JSON.parse(order.items||'[]'):(order.items||[]);
+      var tNo=order.ticket_no||order.id;
+      var tableNo=order.table_number||order.tableNumber||'?';
+      var resTime=formatReserveTime(order.reservation_time||order.created_at);
+      var resNote=order.reservation_note||'';
+      return '<div class="order-card card-reservation" style="margin-bottom:12px;">'+
+        '<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">'+
+          '<div style="background:#f3cf89;color:#1c120b;border-radius:10px;padding:3px 10px;font-size:13px;font-weight:800;">#'+tNo+'</div>'+
+          '<span class="reservation-badge">📅 Reserved</span>'+
+          '<div class="employee-badge" style="margin-bottom:0;">&#128100; '+(order.customer_name||order.customerName||'—')+'</div>'+
+        '</div>'+
+        '<div style="color:#f3cf89;font-size:15px;font-weight:700;margin-bottom:4px;">Table '+tableNo+' — '+resTime+'</div>'+
+        (resNote?'<div style="color:#a89cf5;font-size:13px;margin-bottom:6px;">📝 '+resNote+'</div>':'')+
+        '<div style="font-size:13px;color:#f5e2ba;margin-bottom:8px;">'+items.map(function(i){return i.name+' x'+i.qty;}).join(' · ')+'</div>'+
+        '<div style="color:#f3cf89;font-weight:700;font-size:16px;margin-bottom:10px;">'+Number(order.total).toFixed(3)+' BD</div>'+
+        '<div style="display:flex;gap:8px;">'+
+          '<button onclick="activateReservation('+order.id+')" style="flex:1;background:#7c6af3;color:white;border:none;padding:11px;border-radius:12px;font-weight:800;font-size:14px;cursor:pointer;">&#9654; Start Cooking Now</button>'+
+          '<button onclick="deleteOrder('+order.id+')" style="background:#2a1c11;color:#ff8a65;border:1px solid rgba(255,138,101,0.3);padding:11px 14px;border-radius:12px;font-size:13px;cursor:pointer;">&#10005;</button>'+
+        '</div>'+
+      '</div>';
+    }).join('');
+}
+
 function startPolling(){
+  loadCustomDisplayNames();
   requestWakeLock();
   setInterval(checkDataVersion,2000);
   setInterval(checkMenuVersion,2000);

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#1c120b"/>
+  <!-- Arabic arch / door shape -->
+  <path d="M256 80 C180 80 130 140 130 220 L130 400 L382 400 L382 220 C382 140 332 80 256 80Z" fill="#2a1a0e" stroke="#f3cf89" stroke-width="8"/>
+  <!-- Inner arch window -->
+  <path d="M256 110 C200 110 165 158 165 220 L165 380 L347 380 L347 220 C347 158 312 110 256 110Z" fill="#1c120b"/>
+  <!-- Decorative arch top -->
+  <path d="M210 220 C210 194 231 173 256 173 C281 173 302 194 302 220 L302 260 L210 260Z" fill="#f3cf89" opacity="0.9"/>
+  <!-- Door panels -->
+  <rect x="185" y="270" width="60" height="110" rx="4" fill="#2a1a0e" stroke="#f3cf89" stroke-width="3"/>
+  <rect x="267" y="270" width="60" height="110" rx="4" fill="#2a1a0e" stroke="#f3cf89" stroke-width="3"/>
+  <!-- Door knobs -->
+  <circle cx="240" cy="330" r="7" fill="#f3cf89"/>
+  <circle cx="272" cy="330" r="7" fill="#f3cf89"/>
+  <!-- Stars decorating the arch -->
+  <circle cx="256" cy="148" r="8" fill="#f3cf89"/>
+  <circle cx="220" cy="165" r="5" fill="#f3cf89" opacity="0.7"/>
+  <circle cx="292" cy="165" r="5" fill="#f3cf89" opacity="0.7"/>
+  <!-- Bottom step -->
+  <rect x="110" y="400" width="292" height="18" rx="4" fill="#f3cf89" opacity="0.8"/>
+  <rect x="130" y="418" width="252" height="10" rx="3" fill="#f3cf89" opacity="0.5"/>
+</svg>

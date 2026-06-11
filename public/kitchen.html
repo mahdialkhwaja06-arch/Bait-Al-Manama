@@ -109,7 +109,7 @@ function markReady(id) {
 }
 
 function loadOrders() {
-  fetch('/api/orders?t=' + Date.now())
+  fetch('/api/orders?status=active&t=' + Date.now())
     .then(function(r) { return r.json(); })
     .then(function(d) { ordersData = d; renderOrders(); })
     .catch(function() {});
@@ -117,6 +117,11 @@ function loadOrders() {
 
 loadOrders();
 setInterval(loadOrders, 3000);
+</script>
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
 </script>
 </body>
 </html>

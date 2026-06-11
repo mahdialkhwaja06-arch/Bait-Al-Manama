@@ -2,6 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<link rel="manifest" href="/manifest-customer.json">
+<meta name="theme-color" content="#1c120b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="بيت المنامة">
+<link rel="apple-touch-icon" href="/icon.svg">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Bait Al-Manama - Menu</title>
 <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;800&display=swap" rel="stylesheet">
@@ -436,6 +443,11 @@ var AR = {
 };
 
 function getItemName(name){
+  var custom = customDisplayNames[name];
+  if(custom){
+    if(LANG==='ar' && custom.ar) return custom.ar;
+    if(LANG==='en' && custom.en) return custom.en;
+  }
   if(LANG==='ar' && AR.itemNames[name]) return AR.itemNames[name];
   return name;
 }
@@ -470,6 +482,16 @@ function toggleLang(){
   localStorage.setItem('bam_lang','ar'===LANG?'ar':'en');
   applyLang();
 }
+
+
+/* ───── Custom Display Names (admin-set EN + AR) ───── */
+var customDisplayNames = {};
+fetch('/api/item-display-names').then(function(r){return r.json();}).then(function(d){
+  customDisplayNames = d||{};
+  // Rebuild visible content with new names
+  if(document.getElementById('homeGrid')) buildHomeGrid();
+  renderMenuPages();
+}).catch(function(){});
 
 // Apply on load
 if(LANG==='ar'){

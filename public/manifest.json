@@ -1,0 +1,23 @@
+{
+  "name": "Bait Al-Manama — Staff",
+  "short_name": "بيت المنامة",
+  "description": "Staff management panel for Bait Al-Manama restaurant",
+  "start_url": "/staff.html",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#1c120b",
+  "theme_color": "#1c120b",
+  "lang": "ar",
+  "dir": "auto",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["food", "business", "productivity"],
+  "screenshots": []
+}

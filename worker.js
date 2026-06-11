@@ -262,9 +262,11 @@ export default {
       if (method==='GET' && path_raw==='/orders') {
         const status = url.searchParams.get('status');
         const orders = await readKV('orders:all', []);
-        const filtered = status==='paid'
-          ? orders.filter(o => o.status==='paid').sort((a,b) => new Date(b.paid_at) - new Date(a.paid_at))
-          : orders.filter(o => o.status==='active').sort((a,b) => new Date(b.created_at) - new Date(a.created_at));
+        let filtered;
+        if (status==='paid')        filtered = orders.filter(o => o.status==='paid').sort((a,b)=>new Date(b.paid_at)-new Date(a.paid_at));
+        else if (status==='active') filtered = orders.filter(o => o.status==='active').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
+        else if (status==='reservation') filtered = orders.filter(o => o.status==='reservation').sort((a,b)=>new Date(a.reservation_time||a.created_at)-new Date(b.reservation_time||b.created_at));
+        else                        filtered = orders.filter(o => o.status==='active'||o.status==='reservation').sort((a,b)=>new Date(b.created_at)-new Date(a.created_at));
         return respond(filtered);
       }
       if (method==='POST' && path_raw==='/orders') {
@@ -276,10 +278,12 @@ export default {
         ticketData.counter += 1;
         await writeKV(dateKey, ticketData);
         const ticketNo = ticketData.counter;
-        const newOrder = { id:maxId+1, ticket_no:ticketNo, customer_name:body.customerName||'', phone_number:body.phoneNumber||'', table_number:body.tableNumber||'', items:JSON.stringify(body.items||[]), total:body.total||0, notes:body.notes||'', status:'active', payment_method:null, completed_at:null, paid_at:null, created_at:new Date().toISOString() };
+        const isReservation = !!(body.isReservation);
+        const newOrder = { id:maxId+1, ticket_no:ticketNo, customer_name:body.customerName||'', phone_number:body.phoneNumber||'', table_number:body.tableNumber||'', items:JSON.stringify(body.items||[]), total:body.total||0, notes:body.notes||'', status: isReservation ? 'reservation' : 'active', reservation_time: body.reservationTime||null, reservation_note: body.reservationNote||'', payment_method:null, completed_at:null, paid_at:null, created_at:new Date().toISOString() };
         orders.push(newOrder);
         await writeKV('orders:all', orders);
-        // ── Deduct plate stock on placement ──────────────────
+        // ── Deduct plate stock on placement (skip for reservations) ──
+        if (!isReservation) {
         try {
           const placedItems = body.items || [];
           const stock = await readKV('item-stock:all', {});
@@ -320,6 +324,10 @@ export default {
           'New Order — ' + tableLabel,
           itemSummary + ' | ' + totalStr + (body.notes ? ' | ' + body.notes : '')
         ).catch(() => {}));
+        } else {
+          // Reservation: just notify + bump version, no stock deduction
+          ctx.waitUntil(bumpDataVersion().catch(()=>{}));
+        }
         return respond({ id:newOrder.id });
       }
       const doneMatch = path_raw.match(/^\/orders\/(\d+)\/done$/);
@@ -365,7 +373,12 @@ export default {
       if (method==='POST' && editMatch) {
         const orders = await readKV('orders:all', []);
         const idx = orders.findIndex(o => o.id === parseInt(editMatch[1]));
-        if (idx !== -1) { orders[idx].items=JSON.stringify(body.items||[]); orders[idx].total=body.total||0; }
+        if (idx !== -1) {
+          orders[idx].items = JSON.stringify(body.items||[]);
+          orders[idx].total = body.total||0;
+          // If it was already marked done, reopen it — kitchen needs to re-confirm
+          if (orders[idx].completed_at) orders[idx].completed_at = null;
+        }
         await writeKV('orders:all', orders);
         ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
@@ -384,6 +397,48 @@ export default {
         return respond(await readKV('site-bg:data', { url: '' }));
       if (method==='POST' && path_raw==='/site-bg') {
         await writeKV('site-bg:data', { url: body.url || '' });
+        return respond({ ok:true });
+      }
+      // ── Custom item display names (Arabic + English) ──────────
+      if (method==='GET' && path_raw==='/item-display-names')
+        return respond(await readKV('item-display-names:all', {}));
+      if (method==='POST' && path_raw==='/item-display-names') {
+        await writeKV('item-display-names:all', body);
+        return respond({ ok:true });
+      }
+      // ── WhatsApp auto-report settings ────────────────────────
+      if (method==='GET' && path_raw==='/report-settings')
+        return respond(await readKV('report-settings:v', {}));
+      if (method==='POST' && path_raw==='/report-settings') {
+        await writeKV('report-settings:v', body);
+        return respond({ ok:true });
+      }
+      // ── Activate a reservation → moves to active + deducts stock
+      const activateMatch = path_raw.match(/^\/orders\/(\d+)\/activate$/);
+      if (method==='POST' && activateMatch) {
+        const orders = await readKV('orders:all', []);
+        const idx = orders.findIndex(o => o.id === parseInt(activateMatch[1]));
+        if (idx !== -1) {
+          orders[idx].status = 'active';
+          orders[idx].activated_at = new Date().toISOString();
+          // deduct stock now that kitchen will actually make it
+          try {
+            const placedItems = JSON.parse(orders[idx].items || '[]');
+            const stock = await readKV('item-stock:all', {});
+            const disabled = await readKV('disabled-items:data', {});
+            let sc=false,dc=false;
+            for (const oi of placedItems) {
+              if (stock[oi.name]!==undefined&&stock[oi.name]!==null) {
+                stock[oi.name]=Math.max(0,stock[oi.name]-oi.qty); sc=true;
+                if(stock[oi.name]<=0){disabled[oi.name]=true;dc=true;}
+              }
+            }
+            if(sc) await writeKV('item-stock:all', stock);
+            if(dc){await writeKV('disabled-items:data',disabled);await bumpVersion();}
+          } catch(e){}
+        }
+        await writeKV('orders:all', orders);
+        ctx.waitUntil(bumpDataVersion());
         return respond({ ok:true });
       }
       const deleteMatch = path_raw.match(/^\/orders\/(\d+)$/);
@@ -606,5 +661,47 @@ export default {
     } catch(err) {
       return respond({ error: err.message }, 500);
     }
+  },
+
+  // ── Cron: Midnight Bahrain → Send WhatsApp end-of-day report ─
+  async scheduled(event, env, ctx) {
+    try {
+      const kv = env.KV;
+      const settings = JSON.parse(await kv.get('report-settings:v') || '{}');
+      if (!settings.waPhone || !settings.waApiKey) return;
+      // Yesterday in Bahrain time
+      const yesterday = new Date(Date.now() + 3*60*60*1000 - 86400000);
+      const dateStr = yesterday.toISOString().split('T')[0];
+      const orders = JSON.parse(await kv.get('orders:all') || '[]');
+      const dayOrders = orders.filter(o => o.status==='paid' && (o.paid_at||'').startsWith(dateStr));
+      const total = dayOrders.reduce((s,o) => s+Number(o.total||0), 0);
+      const methods = {};
+      dayOrders.forEach(o => {
+        const pm = o.payment_method||'Cash';
+        if (pm.startsWith('[')) { try { JSON.parse(pm).forEach(s=>{methods[s.method]=(methods[s.method]||0)+Number(s.amount);}); }catch(e){} }
+        else { methods[pm]=(methods[pm]||0)+Number(o.total||0); }
+      });
+      const itemCounts = {};
+      dayOrders.forEach(o => {
+        try { (JSON.parse(o.items||'[]')).forEach(i => { itemCounts[i.name]=(itemCounts[i.name]||0)+i.qty; }); }catch(e){}
+      });
+      const topItems = Object.entries(itemCounts).sort((a,b)=>b[1]-a[1]).slice(0,5).map(e=>'• '+e[0]+': x'+e[1]).join('\n');
+      const lines = [
+        '📊 *بيت المنامة — التقرير اليومي*',
+        '📅 '+dateStr,
+        '',
+        '💰 الإيراد: '+total.toFixed(3)+' BD',
+        '🎫 الطلبات: '+dayOrders.length,
+        '',
+        '💳 كاش: '+(methods['Cash']||0).toFixed(3)+' BD',
+        '💳 بطاقة: '+(methods['Card']||0).toFixed(3)+' BD',
+        '💳 بنفت: '+(methods['Benefit']||0).toFixed(3)+' BD',
+        '',
+        '🏆 أكثر المبيعات:',
+        topItems || '• لا بيانات'
+      ];
+      const msg = encodeURIComponent(lines.join('\n'));
+      await fetch(`https://api.callmebot.com/whatsapp.php?phone=${settings.waPhone}&text=${msg}&apikey=${settings.waApiKey}`);
+    } catch(e) {}
   }
 };
